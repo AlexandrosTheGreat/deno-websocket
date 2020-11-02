@@ -1,0 +1,6 @@
+version: '3.7'
+
+# https://code.visualstudio.com/docs/remote/create-dev-container#_extend-your-docker-compose-file-for-development
+services:
+    deno:
+        command: /bin/sh -c "while sleep 1000; do :; done"

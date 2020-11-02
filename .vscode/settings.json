@@ -1,0 +1,10 @@
+{
+    "deno.enable": true,
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "prettier.tabWidth": 4,
+    "prettier.useTabs": true,
+    "editor.formatOnPaste": false,
+    "editor.formatOnType": false,
+    "editor.formatOnSave": true,
+    //"editor.formatOnSaveMode": "modifications",
+}
