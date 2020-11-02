@@ -1,0 +1,10 @@
+version: '3.7'
+
+services:
+    deno:
+        image: deno
+        build: .
+        restart: unless-stopped
+        network_mode: bridge
+        volumes: 
+            - ../:/workspace
