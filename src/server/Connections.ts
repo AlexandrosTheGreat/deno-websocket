@@ -1,16 +1,22 @@
 import { WebSocket } from 'https://deno.land/std@0.76.0/ws/mod.ts';
 
-type Connection = Readonly<{ id: String; ws: WebSocket }>;
-const Connections: Map<String, WebSocket> = new Map();
+export type Connection = { ws: WebSocket; state: boolean; name: String };
+export type ConnInfo = { id: String; conn: Connection };
+export type ConnInfoRO = Readonly<ConnInfo>;
 
-export function GetConnections(): Promise<Array<Connection>> {
+const Connections: Map<String, Connection> = new Map();
+
+export function GetConnections(): Promise<Array<ConnInfoRO>> {
 	return new Promise((resolve) => {
-		const lConnection: Array<Connection> = [];
-		Connections.forEach((pWebSocket, pId) => {
+		const lConnection: Array<ConnInfoRO> = [];
+		Connections.forEach((pConnection, pId) => {
+			if (!pConnection.state) {
+				return;
+			}
 			lConnection.push(
 				Object.freeze({
 					id: pId,
-					ws: pWebSocket,
+					conn: pConnection,
 				})
 			);
 		});
@@ -19,15 +25,16 @@ export function GetConnections(): Promise<Array<Connection>> {
 }
 
 let id = 0;
-export function AddConn(pWebSocket: WebSocket): Promise<String> {
+export function AddConn(pWebSocket: WebSocket): Promise<ConnInfo> {
 	return new Promise((resolve) => {
 		const _id = (id++).toString();
-		Connections.set(_id, pWebSocket);
-		return resolve(_id);
+		const objConn = { ws: pWebSocket, state: false, name: '' };
+		Connections.set(_id, objConn);
+		return resolve({ id: _id, conn: objConn });
 	});
 }
 
-export function FindConnById(pId: String): Promise<WebSocket | null> {
+export function FindConnById(pId: String): Promise<Connection | null> {
 	return new Promise((resolve) => {
 		const conn = Connections.get(pId);
 		return resolve(conn ? conn : null);
@@ -44,8 +51,8 @@ export function RemoveConnById(pId: String): Promise<Boolean> {
 export function CheckConnById(pId: String): Promise<Boolean> {
 	return new Promise((resolve) => {
 		const conn = Connections.get(pId);
-		const isValid = !(!conn || conn.isClosed);
-		resolve(isValid);
+		const isInvalid = !conn || conn.ws.isClosed;
+		resolve(!isInvalid);
 	});
 }
 
