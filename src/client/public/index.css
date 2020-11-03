@@ -1,0 +1,13 @@
+#login,
+#chat {
+	width: 600px;
+	margin: 0 auto;
+	text-align: center;
+}
+
+#txtChat {
+	width: 100%;
+	resize: none;
+	height: 300px;
+	margin: 0 0 10px 0;
+}
