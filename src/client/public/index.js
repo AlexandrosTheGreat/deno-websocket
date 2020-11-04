@@ -4,12 +4,14 @@ $(function onload() {
 
 	const objLogin = $('#login');
 	const objChat = $('#chat');
+	const objPanel = $('#panel');
 	const txtUsername = $('#txtUsername');
 	const btnJoin = $('#btnJoin');
 	const txtChat = $('#txtChat');
 	const txtMessage = $('#txtMessage');
 	const btnSend = $('#btnSend');
 	const btnLeave = $('#btnLeave');
+	const panelUsers = $('#panelUsers');
 
 	const chatScroll = () => {
 		txtChat.prop('scrollTop', txtChat.prop('scrollHeight'));
@@ -27,7 +29,16 @@ $(function onload() {
 		chatScroll();
 	};
 
+	const panelEmpty = () => {
+		panelUsers.val('');
+	};
+
+	const addUserToPanel = (pData) => {
+		panelUsers.val(`${panelUsers.val()}${pData.id}. ${pData.name}\n`);
+	};
+
 	objChat.hide();
+	objPanel.hide();
 	txtUsername.focus();
 
 	ws.addEventListener('message', (evt) => {
@@ -40,8 +51,10 @@ $(function onload() {
 					username = s;
 					objLogin.hide();
 					objChat.show();
+					objPanel.show();
 					txtUsername.val('');
 					chatEmpty();
+					panelEmpty();
 					chatWriteLine(`You are connected! (${s})`);
 				} else {
 					alert(r);
@@ -65,9 +78,11 @@ $(function onload() {
 				const r = objData.r;
 				if (r === 'OK') {
 					chatEmpty();
+					panelEmpty();
 					username = '';
 					objLogin.show();
 					objChat.hide();
+					objPanel.hide();
 					txtUsername.val('').focus();
 				} else {
 					alert(r);
@@ -90,6 +105,10 @@ $(function onload() {
 				chatWriteLine(`User disconnect (${username}).`);
 				break;
 			}
+			case 'addUserToPanel': {
+				addUserToPanel(objData.data);
+				break;
+			}
 			default: {
 				break;
 			}
@@ -108,7 +127,7 @@ $(function onload() {
 
 	btnSend.click(() => {
 		const message = txtMessage.val();
-		if (message !== '') {
+		if ($.trim(message) !== '') {
 			ws.send(
 				JSON.stringify({
 					h: 'chat',
@@ -116,6 +135,7 @@ $(function onload() {
 				})
 			);
 		} else {
+			txtMessage.val('');
 			txtMessage.focus();
 		}
 	});

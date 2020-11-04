@@ -11,3 +11,15 @@
 	height: 300px;
 	margin: 0 0 10px 0;
 }
+
+#panel {
+	position: absolute;
+	top: 8px;
+}
+
+#panelUsers {
+	width: 250px;
+	resize: none;
+	height: 300px;
+	margin: 0 0 10px 0;
+}

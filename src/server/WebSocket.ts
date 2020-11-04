@@ -46,6 +46,7 @@ export async function HandleWSConn(pWebSocket: WebSocket): Promise<void> {
 							_conn.name = objEvent.d;
 							await BroadcastJoin(_connInfo);
 							await RespondJoin(_connInfo, 'OK');
+							await RespondAddUserToPanel(_connInfo);
 						} else {
 							await RespondJoin(_connInfo, 'Invalid username');
 						}
@@ -166,4 +167,15 @@ async function Respond(
 	if (await CheckConnById(_Id)) {
 		await _WS.send(JSON.stringify(pMessage));
 	}
+}
+
+async function RespondAddUserToPanel(pConnInfo: ConnInfo): Promise<void> {
+	const { id: _Id, conn: _Conn } = pConnInfo;
+	const { name: _Name, ws: _WS } = _Conn;
+	await _WS.send(
+		JSON.stringify({
+			h: 'addUserToPanel',
+			data: { id: _Id, name: _Name },
+		})
+	);
 }
