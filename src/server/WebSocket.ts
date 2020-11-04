@@ -16,11 +16,19 @@ import {
  * h: Handler
  * s: Sender
  * d: Data
+ * r: Response status
  */
-type WSMsgJoin = { h: 'join'; d: String };
-type WSMsgLeave = { h: 'leave'; d: String };
-type WSMsgChat = { h: 'chat'; s: String; d: String };
-type WSMessage = WSMsgJoin | WSMsgLeave | WSMsgChat;
+type WSMsgJoin = { h: 'join'; d: string };
+type WSMsgLeave = { h: 'leave'; d: string };
+type WSMsgChat = { h: 'chat'; s: string; d: string };
+type WSMessageClient = WSMsgJoin | WSMsgLeave | WSMsgChat;
+
+type WSMsgJoinResp = { h: 'joinResp'; s: string; r: string };
+type WSMsgLeaveResp = { h: 'leaveResp'; r: string };
+type WSMsgChatResp = { h: 'chatResp'; d: string; r: string };
+type WSMessageServer = WSMsgJoinResp | WSMsgLeaveResp | WSMsgChatResp;
+
+type WSMessage = WSMessageClient | WSMessageServer;
 
 export async function HandleWSConn(pWebSocket: WebSocket): Promise<void> {
 	const _connInfo = await AddConn(pWebSocket);
@@ -32,19 +40,31 @@ export async function HandleWSConn(pWebSocket: WebSocket): Promise<void> {
 				const objEvent: WSMessage = JSON.parse(event);
 				switch (objEvent.h) {
 					case 'join': {
-						_conn.state = true;
-						_conn.name = objEvent.d;
-						await BroadcastJoin(_connInfo);
+						const _name = objEvent.d;
+						if (/^[a-zA-Z0-1]+$/i.test(_name)) {
+							_conn.state = true;
+							_conn.name = objEvent.d;
+							await BroadcastJoin(_connInfo);
+							await RespondJoin(_connInfo, 'OK');
+						} else {
+							await RespondJoin(_connInfo, 'Invalid username');
+						}
 						break;
 					}
 					case 'leave': {
-						await BroadcastLeave(_connInfo);
 						_conn.name = '';
 						_conn.state = false;
+						await BroadcastLeave(_connInfo);
+						await RespondLeave(_connInfo, 'OK');
 						break;
 					}
 					case 'chat': {
-						await BroadcastChat(_connInfo, objEvent.d);
+						if (_connInfo.conn.state) {
+							await BroadcastChat(_connInfo, objEvent.d);
+							await RespondChat(_connInfo, 'OK', objEvent.d);
+						} else {
+							await RespondChat(_connInfo, 'Invalid', objEvent.d);
+						}
 						break;
 					}
 					default: {
@@ -52,17 +72,11 @@ export async function HandleWSConn(pWebSocket: WebSocket): Promise<void> {
 						break;
 					}
 				}
-			} /*else if (event instanceof Uint8Array) {
-				// binary message.
-				console.log('ws:Binary', event);
-			} else if (isWebSocketPingEvent(event)) {
-				// ping.
-				const [, body] = event;
-				console.log('ws:Ping', _connId, body);
-			}*/ else if (
-				isWebSocketCloseEvent(event)
-			) {
+			} else if (isWebSocketCloseEvent(event)) {
 				console.log(`Socket disconnected! :: ${_connId}`);
+				if (_connInfo.conn.state) {
+					await BroadcastLeave(_connInfo);
+				}
 				await RemoveConnById(_connId);
 			} else {
 				console.log(`Another type: ${typeof event}`, event);
@@ -74,6 +88,35 @@ export async function HandleWSConn(pWebSocket: WebSocket): Promise<void> {
 			await pWebSocket.close(1000).catch(console.error);
 		}
 	}
+}
+
+async function RespondJoin(pConnInfo: ConnInfo, pStatus: string) {
+	const { id: _Id, conn: _Conn } = pConnInfo;
+	const { name: _Name } = _Conn;
+	return Respond(pConnInfo, {
+		h: 'joinResp',
+		s: _Name,
+		r: pStatus,
+	});
+}
+
+async function RespondLeave(pConnInfo: ConnInfo, pStatus: string) {
+	return Respond(pConnInfo, {
+		h: 'leaveResp',
+		r: pStatus,
+	});
+}
+
+async function RespondChat(
+	pConnInfo: ConnInfo,
+	pStatus: string,
+	pChatMsg: string
+) {
+	return Respond(pConnInfo, {
+		h: 'chatResp',
+		d: pChatMsg,
+		r: pStatus,
+	});
 }
 
 function BroadcastJoin(pSrcInfo: ConnInfo) {
@@ -94,7 +137,7 @@ function BroadcastLeave(pSrcInfo: ConnInfo) {
 	});
 }
 
-function BroadcastChat(pSrcInfo: ConnInfo, pChatMsg: String) {
+function BroadcastChat(pSrcInfo: ConnInfo, pChatMsg: string) {
 	const { id: _SenderId, conn: _SenderConn } = pSrcInfo;
 	const { name: _SenderName } = _SenderConn;
 	return Broadcast(_SenderId, {
@@ -104,12 +147,23 @@ function BroadcastChat(pSrcInfo: ConnInfo, pChatMsg: String) {
 	});
 }
 
-async function Broadcast(pSrcId: String, pMessage: WSMessage): Promise<void> {
+async function Broadcast(pSrcId: string, pMessage: WSMessage): Promise<void> {
 	for (const pTgtInfo of await GetConnections()) {
 		const { id: _TargetId, conn: _TargetConn } = pTgtInfo;
 		const { ws: _TargetWS } = _TargetConn;
 		if (pSrcId !== _TargetId && (await CheckConnById(_TargetId))) {
 			await _TargetWS.send(JSON.stringify(pMessage));
 		}
+	}
+}
+
+async function Respond(
+	pConnInfo: ConnInfo,
+	pMessage: WSMessage
+): Promise<void> {
+	const { id: _Id, conn: _Conn } = pConnInfo;
+	const { name: _Name, ws: _WS } = _Conn;
+	if (await CheckConnById(_Id)) {
+		await _WS.send(JSON.stringify(pMessage));
 	}
 }

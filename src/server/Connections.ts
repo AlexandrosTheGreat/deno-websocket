@@ -1,10 +1,10 @@
 import { WebSocket } from 'https://deno.land/std@0.76.0/ws/mod.ts';
 
-export type Connection = { ws: WebSocket; state: boolean; name: String };
-export type ConnInfo = { id: String; conn: Connection };
+export type Connection = { ws: WebSocket; state: boolean; name: string };
+export type ConnInfo = { id: string; conn: Connection };
 export type ConnInfoRO = Readonly<ConnInfo>;
 
-const Connections: Map<String, Connection> = new Map();
+const Connections: Map<string, Connection> = new Map();
 
 export function GetConnections(): Promise<Array<ConnInfoRO>> {
 	return new Promise((resolve) => {
@@ -34,21 +34,21 @@ export function AddConn(pWebSocket: WebSocket): Promise<ConnInfo> {
 	});
 }
 
-export function FindConnById(pId: String): Promise<Connection | null> {
+export function FindConnById(pId: string): Promise<Connection | null> {
 	return new Promise((resolve) => {
 		const conn = Connections.get(pId);
 		return resolve(conn ? conn : null);
 	});
 }
 
-export function RemoveConnById(pId: String): Promise<Boolean> {
+export function RemoveConnById(pId: string): Promise<Boolean> {
 	return new Promise((resolve) => {
 		const deleted = Connections.delete(pId);
 		resolve(deleted);
 	});
 }
 
-export function CheckConnById(pId: String): Promise<Boolean> {
+export function CheckConnById(pId: string): Promise<Boolean> {
 	return new Promise((resolve) => {
 		const conn = Connections.get(pId);
 		const isInvalid = !conn || conn.ws.isClosed;
