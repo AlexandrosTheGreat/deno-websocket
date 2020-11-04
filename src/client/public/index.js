@@ -128,7 +128,7 @@ $(function onload() {
 		);
 	});
 
-	txtMessage.on('keypress', function (e) {
+	txtMessage.on('keypress', (e) => {
 		if (e.which === 13) {
 			btnSend.click();
 		}
