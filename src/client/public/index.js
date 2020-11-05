@@ -33,8 +33,10 @@ $(function onload() {
 		panelUsers.val('');
 	};
 
-	const addUserToPanel = (pData) => {
-		panelUsers.val(`${panelUsers.val()}${pData.id}. ${pData.name}\n`);
+	const panelAddUsers = (pArr) => {
+		pArr.forEach((pItem) => {
+			panelUsers.val(`${panelUsers.val()}${pItem.id}. ${pItem.name}\n`);
+		});
 	};
 
 	objChat.hide();
@@ -56,6 +58,7 @@ $(function onload() {
 					chatEmpty();
 					panelEmpty();
 					chatWriteLine(`You are connected! (${s})`);
+					getUsers();
 				} else {
 					alert(r);
 					txtUsername.focus();
@@ -89,6 +92,10 @@ $(function onload() {
 				}
 				break;
 			}
+			case 'getUsersResp': {
+				panelAddUsers(objData.userList);
+				break;
+			}
 			case 'join': {
 				const username = objData.d;
 				chatWriteLine(`User connect (${username})`);
@@ -105,15 +112,19 @@ $(function onload() {
 				chatWriteLine(`User disconnect (${username})`);
 				break;
 			}
-			case 'addUserToPanel': {
-				addUserToPanel(objData.data);
-				break;
-			}
 			default: {
 				break;
 			}
 		}
 	});
+
+	const getUsers = () => {
+		ws.send(
+			JSON.stringify({
+				h: 'getUsers',
+			})
+		);
+	};
 
 	btnJoin.click(() => {
 		const username = txtUsername.val();
@@ -126,8 +137,8 @@ $(function onload() {
 	});
 
 	btnSend.click(() => {
-		const message = txtMessage.val();
-		if ($.trim(message) !== '') {
+		const message = $.trim(txtMessage.val());
+		if (message !== '') {
 			ws.send(
 				JSON.stringify({
 					h: 'chat',

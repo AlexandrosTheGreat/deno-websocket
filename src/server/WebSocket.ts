@@ -21,12 +21,21 @@ import {
 type WSMsgJoin = { h: 'join'; d: string };
 type WSMsgLeave = { h: 'leave'; d: string };
 type WSMsgChat = { h: 'chat'; s: string; d: string };
-type WSMessageClient = WSMsgJoin | WSMsgLeave | WSMsgChat;
+type WSMsgGetUsers = { h: 'getUsers' };
+type WSMessageClient = WSMsgJoin | WSMsgLeave | WSMsgChat | WSMsgGetUsers;
 
 type WSMsgJoinResp = { h: 'joinResp'; s: string; r: string };
 type WSMsgLeaveResp = { h: 'leaveResp'; r: string };
 type WSMsgChatResp = { h: 'chatResp'; d: string; r: string };
-type WSMessageServer = WSMsgJoinResp | WSMsgLeaveResp | WSMsgChatResp;
+type WSMsgGetUsersResp = {
+	h: 'getUsersResp';
+	userList: { id: string; name: string }[];
+};
+type WSMessageServer =
+	| WSMsgJoinResp
+	| WSMsgLeaveResp
+	| WSMsgChatResp
+	| WSMsgGetUsersResp;
 
 type WSMessage = WSMessageClient | WSMessageServer;
 
@@ -46,7 +55,6 @@ export async function HandleWSConn(pWebSocket: WebSocket): Promise<void> {
 							_conn.name = objEvent.d;
 							await BroadcastJoin(_connInfo);
 							await RespondJoin(_connInfo, 'OK');
-							await RespondAddUserToPanel(_connInfo);
 						} else {
 							await RespondJoin(_connInfo, 'Invalid username');
 						}
@@ -66,6 +74,10 @@ export async function HandleWSConn(pWebSocket: WebSocket): Promise<void> {
 						} else {
 							await RespondChat(_connInfo, 'Invalid', objEvent.d);
 						}
+						break;
+					}
+					case 'getUsers': {
+						await RespondGetUsers(_connInfo);
 						break;
 					}
 					default: {
@@ -120,6 +132,24 @@ async function RespondChat(
 	});
 }
 
+async function RespondGetUsers(pConnInfo: ConnInfo) {
+	const tArr = [];
+	for (const pConnection of await GetConnections()) {
+		const { id: _Id, conn: _Conn } = pConnection;
+		const { name: _Name } = _Conn;
+		if (await CheckConnById(_Id)) {
+			tArr.push({
+				id: _Id,
+				name: _Name,
+			});
+		}
+	}
+	return Respond(pConnInfo, {
+		h: 'getUsersResp',
+		userList: tArr,
+	});
+}
+
 function BroadcastJoin(pSrcInfo: ConnInfo) {
 	const { id: _SenderId, conn: _SenderConn } = pSrcInfo;
 	const { name: _SenderName } = _SenderConn;
@@ -167,15 +197,4 @@ async function Respond(
 	if (await CheckConnById(_Id)) {
 		await _WS.send(JSON.stringify(pMessage));
 	}
-}
-
-async function RespondAddUserToPanel(pConnInfo: ConnInfo): Promise<void> {
-	const { id: _Id, conn: _Conn } = pConnInfo;
-	const { name: _Name, ws: _WS } = _Conn;
-	await _WS.send(
-		JSON.stringify({
-			h: 'addUserToPanel',
-			data: { id: _Id, name: _Name },
-		})
-	);
 }
