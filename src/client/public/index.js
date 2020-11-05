@@ -91,7 +91,7 @@ $(function onload() {
 			}
 			case 'join': {
 				const username = objData.d;
-				chatWriteLine(`User connect (${username}).`);
+				chatWriteLine(`User connect (${username})`);
 				break;
 			}
 			case 'chat': {
@@ -102,7 +102,7 @@ $(function onload() {
 			}
 			case 'leave': {
 				const username = objData.d;
-				chatWriteLine(`User disconnect (${username}).`);
+				chatWriteLine(`User disconnect (${username})`);
 				break;
 			}
 			case 'addUserToPanel': {

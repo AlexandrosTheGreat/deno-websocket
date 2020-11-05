@@ -41,7 +41,7 @@ export async function HandleWSConn(pWebSocket: WebSocket): Promise<void> {
 				switch (objEvent.h) {
 					case 'join': {
 						const _name = objEvent.d;
-						if (/^[a-zA-Z0-1]+$/i.test(_name)) {
+						if (/^[a-zA-Z0-9]+$/i.test(_name)) {
 							_conn.state = true;
 							_conn.name = objEvent.d;
 							await BroadcastJoin(_connInfo);
@@ -53,9 +53,9 @@ export async function HandleWSConn(pWebSocket: WebSocket): Promise<void> {
 						break;
 					}
 					case 'leave': {
+						await BroadcastLeave(_connInfo);
 						_conn.name = '';
 						_conn.state = false;
-						await BroadcastLeave(_connInfo);
 						await RespondLeave(_connInfo, 'OK');
 						break;
 					}
