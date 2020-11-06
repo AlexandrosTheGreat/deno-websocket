@@ -42,8 +42,8 @@ $(function onload() {
 					objChat.show();
 					txtUsername.val('');
 					chatEmpty();
-					chatWriteLine(`You are connected! (${s})`);
 					txtMessage.focus();
+					chatWriteLine(`You are connected! (${s})`);
 				} else {
 					alert(r);
 					txtUsername.focus();
