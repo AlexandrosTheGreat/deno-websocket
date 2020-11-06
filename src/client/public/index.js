@@ -43,6 +43,7 @@ $(function onload() {
 					txtUsername.val('');
 					chatEmpty();
 					chatWriteLine(`You are connected! (${s})`);
+					txtMessage.focus();
 				} else {
 					alert(r);
 					txtUsername.focus();
@@ -126,6 +127,12 @@ $(function onload() {
 				h: 'leave',
 			})
 		);
+	});
+
+	txtUsername.on('keypress', (e) => {
+		if (e.which === 13) {
+			btnJoin.click();
+		}
 	});
 
 	txtMessage.on('keypress', (e) => {

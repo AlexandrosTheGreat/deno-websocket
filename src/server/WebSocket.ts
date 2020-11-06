@@ -10,7 +10,10 @@ import {
 	RemoveConnById,
 	CheckConnById,
 	ConnInfo,
+	FindConnByName,
 } from './Connections.ts';
+
+import { UPPERCASE_USERNAMES } from './Configuration.ts';
 
 /**
  * h: Handler
@@ -40,14 +43,21 @@ export async function HandleWSConn(pWebSocket: WebSocket): Promise<void> {
 				const objEvent: WSMessage = JSON.parse(event);
 				switch (objEvent.h) {
 					case 'join': {
-						const _name = objEvent.d;
-						if (/^[a-zA-Z0-9]+$/i.test(_name)) {
+						const _name = UPPERCASE_USERNAMES
+							? objEvent.d.toUpperCase()
+							: objEvent.d;
+						if (!/^[a-zA-Z0-9]+$/i.test(_name)) {
+							await RespondJoin(_connInfo, 'Invalid username');
+						} else if (await FindConnByName(_name)) {
+							await RespondJoin(
+								_connInfo,
+								'Username already in use'
+							);
+						} else {
 							_conn.state = true;
-							_conn.name = objEvent.d;
+							_conn.name = _name;
 							await BroadcastJoin(_connInfo);
 							await RespondJoin(_connInfo, 'OK');
-						} else {
-							await RespondJoin(_connInfo, 'Invalid username');
 						}
 						break;
 					}
