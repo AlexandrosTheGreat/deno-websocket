@@ -1,6 +1,7 @@
 $(function onload() {
 	const ws = new WebSocket(`ws://${location.host}`);
 	let username = '';
+	let tArrUsers = [];
 
 	const objLogin = $('#login');
 	const objChat = $('#chat');
@@ -33,9 +34,20 @@ $(function onload() {
 		panelUsers.val('');
 	};
 
+	const addUser = (pUserName) => {
+		tArrUsers.push(pUserName);
+		panelAddUsers(tArrUsers);
+	};
+
+	const removeUser = (pUserName) => {
+		tArrUsers.splice(tArrUsers.indexOf(pUserName), 1);
+		panelAddUsers(tArrUsers);
+	};
+
 	const panelAddUsers = (pArr) => {
-		pArr.forEach((pItem) => {
-			panelUsers.val(`${panelUsers.val()}${pItem.id}. ${pItem.name}\n`);
+		panelEmpty();
+		pArr.sort().forEach((pName, pIndex) => {
+			panelUsers.val(`${panelUsers.val()}${pIndex + 1}. ${pName}\n`);
 		});
 	};
 
@@ -56,11 +68,8 @@ $(function onload() {
 					objPanel.show();
 					txtUsername.val('');
 					chatEmpty();
-<<<<<<< HEAD
 					panelEmpty();
-=======
 					txtMessage.focus();
->>>>>>> 91bb2d2083828c1184c8b25621cd214d8688992f
 					chatWriteLine(`You are connected! (${s})`);
 					getUsers();
 				} else {
@@ -97,12 +106,14 @@ $(function onload() {
 				break;
 			}
 			case 'getUsersResp': {
-				panelAddUsers(objData.userList);
+				tArrUsers = objData.userList;
+				panelAddUsers(tArrUsers);
 				break;
 			}
 			case 'join': {
 				const username = objData.d;
 				chatWriteLine(`User connect (${username})`);
+				addUser(username);
 				break;
 			}
 			case 'chat': {
@@ -114,6 +125,7 @@ $(function onload() {
 			case 'leave': {
 				const username = objData.d;
 				chatWriteLine(`User disconnect (${username})`);
+				removeUser(username);
 				break;
 			}
 			default: {

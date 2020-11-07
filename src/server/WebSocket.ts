@@ -32,7 +32,7 @@ type WSMsgLeaveResp = { h: 'leaveResp'; r: string };
 type WSMsgChatResp = { h: 'chatResp'; d: string; r: string };
 type WSMsgGetUsersResp = {
 	h: 'getUsersResp';
-	userList: { id: string; name: string }[];
+	userList: Array<string>;
 };
 type WSMessageServer =
 	| WSMsgJoinResp
@@ -143,20 +143,11 @@ async function RespondChat(
 }
 
 async function RespondGetUsers(pConnInfo: ConnInfo) {
-	const tArr = [];
-	for (const pConnection of await GetConnections()) {
-		const { id: _Id, conn: _Conn } = pConnection;
-		const { name: _Name } = _Conn;
-		if (await CheckConnById(_Id)) {
-			tArr.push({
-				id: _Id,
-				name: _Name,
-			});
-		}
-	}
 	return Respond(pConnInfo, {
 		h: 'getUsersResp',
-		userList: tArr,
+		userList: (await GetConnections()).map(
+			(pConnection) => pConnection.conn.name
+		),
 	});
 }
 
