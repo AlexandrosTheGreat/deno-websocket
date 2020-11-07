@@ -56,7 +56,11 @@ $(function onload() {
 					objPanel.show();
 					txtUsername.val('');
 					chatEmpty();
+<<<<<<< HEAD
 					panelEmpty();
+=======
+					txtMessage.focus();
+>>>>>>> 91bb2d2083828c1184c8b25621cd214d8688992f
 					chatWriteLine(`You are connected! (${s})`);
 					getUsers();
 				} else {
@@ -157,6 +161,12 @@ $(function onload() {
 				h: 'leave',
 			})
 		);
+	});
+
+	txtUsername.on('keypress', (e) => {
+		if (e.which === 13) {
+			btnJoin.click();
+		}
 	});
 
 	txtMessage.on('keypress', (e) => {

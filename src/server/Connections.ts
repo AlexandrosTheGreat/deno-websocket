@@ -41,6 +41,17 @@ export function FindConnById(pId: string): Promise<Connection | null> {
 	});
 }
 
+export function FindConnByName(pName: string): Promise<Connection | null> {
+	return new Promise((resolve) => {
+		for (const [_Id, _Conn] of Connections.entries()) {
+			if (_Conn.name.toUpperCase() === pName.toUpperCase()) {
+				return resolve(_Conn);
+			}
+		}
+		resolve(null);
+	});
+}
+
 export function RemoveConnById(pId: string): Promise<Boolean> {
 	return new Promise((resolve) => {
 		const deleted = Connections.delete(pId);
