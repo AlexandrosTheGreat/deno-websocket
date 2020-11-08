@@ -24,12 +24,21 @@ import { UPPERCASE_USERNAMES } from './Configuration.ts';
 type WSMsgJoin = { h: 'join'; d: string };
 type WSMsgLeave = { h: 'leave'; d: string };
 type WSMsgChat = { h: 'chat'; s: string; d: string };
-type WSMessageClient = WSMsgJoin | WSMsgLeave | WSMsgChat;
+type WSMsgGetUsers = { h: 'getUsers' };
+type WSMessageClient = WSMsgJoin | WSMsgLeave | WSMsgChat | WSMsgGetUsers;
 
 type WSMsgJoinResp = { h: 'joinResp'; s: string; r: string };
 type WSMsgLeaveResp = { h: 'leaveResp'; r: string };
 type WSMsgChatResp = { h: 'chatResp'; d: string; r: string };
-type WSMessageServer = WSMsgJoinResp | WSMsgLeaveResp | WSMsgChatResp;
+type WSMsgGetUsersResp = {
+	h: 'getUsersResp';
+	userList: Array<string>;
+};
+type WSMessageServer =
+	| WSMsgJoinResp
+	| WSMsgLeaveResp
+	| WSMsgChatResp
+	| WSMsgGetUsersResp;
 
 type WSMessage = WSMessageClient | WSMessageServer;
 
@@ -75,6 +84,10 @@ export async function HandleWSConn(pWebSocket: WebSocket): Promise<void> {
 						} else {
 							await RespondChat(_connInfo, 'Invalid', objEvent.d);
 						}
+						break;
+					}
+					case 'getUsers': {
+						await RespondGetUsers(_connInfo);
 						break;
 					}
 					default: {
@@ -126,6 +139,15 @@ async function RespondChat(
 		h: 'chatResp',
 		d: pChatMsg,
 		r: pStatus,
+	});
+}
+
+async function RespondGetUsers(pConnInfo: ConnInfo) {
+	return Respond(pConnInfo, {
+		h: 'getUsersResp',
+		userList: (await GetConnections()).map(
+			(pConnection) => pConnection.conn.name
+		),
 	});
 }
 

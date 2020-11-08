@@ -1,15 +1,18 @@
 $(function onload() {
 	const ws = new WebSocket(`ws://${location.host}`);
 	let username = '';
+	let tArrUsers = [];
 
 	const objLogin = $('#login');
 	const objChat = $('#chat');
+	const objPanel = $('#panel');
 	const txtUsername = $('#txtUsername');
 	const btnJoin = $('#btnJoin');
 	const txtChat = $('#txtChat');
 	const txtMessage = $('#txtMessage');
 	const btnSend = $('#btnSend');
 	const btnLeave = $('#btnLeave');
+	const panelUsers = $('#panelUsers');
 
 	const chatScroll = () => {
 		txtChat.prop('scrollTop', txtChat.prop('scrollHeight'));
@@ -27,7 +30,29 @@ $(function onload() {
 		chatScroll();
 	};
 
+	const panelEmpty = () => {
+		panelUsers.val('');
+	};
+
+	const addUser = (pUserName) => {
+		tArrUsers.push(pUserName);
+		panelAddUsers(tArrUsers);
+	};
+
+	const removeUser = (pUserName) => {
+		tArrUsers.splice(tArrUsers.indexOf(pUserName), 1);
+		panelAddUsers(tArrUsers);
+	};
+
+	const panelAddUsers = (pArr) => {
+		panelEmpty();
+		pArr.sort().forEach((pName, pIndex) => {
+			panelUsers.val(`${panelUsers.val()}${pIndex + 1}. ${pName}\n`);
+		});
+	};
+
 	objChat.hide();
+	objPanel.hide();
 	txtUsername.focus();
 
 	ws.addEventListener('message', (evt) => {
@@ -40,10 +65,13 @@ $(function onload() {
 					username = s;
 					objLogin.hide();
 					objChat.show();
+					objPanel.show();
 					txtUsername.val('');
 					chatEmpty();
+					panelEmpty();
 					txtMessage.focus();
 					chatWriteLine(`You are connected! (${s})`);
+					getUsers();
 				} else {
 					alert(r);
 					txtUsername.focus();
@@ -66,18 +94,26 @@ $(function onload() {
 				const r = objData.r;
 				if (r === 'OK') {
 					chatEmpty();
+					panelEmpty();
 					username = '';
 					objLogin.show();
 					objChat.hide();
+					objPanel.hide();
 					txtUsername.val('').focus();
 				} else {
 					alert(r);
 				}
 				break;
 			}
+			case 'getUsersResp': {
+				tArrUsers = objData.userList;
+				panelAddUsers(tArrUsers);
+				break;
+			}
 			case 'join': {
 				const username = objData.d;
 				chatWriteLine(`User connect (${username})`);
+				addUser(username);
 				break;
 			}
 			case 'chat': {
@@ -89,6 +125,7 @@ $(function onload() {
 			case 'leave': {
 				const username = objData.d;
 				chatWriteLine(`User disconnect (${username})`);
+				removeUser(username);
 				break;
 			}
 			default: {
@@ -96,6 +133,14 @@ $(function onload() {
 			}
 		}
 	});
+
+	const getUsers = () => {
+		ws.send(
+			JSON.stringify({
+				h: 'getUsers',
+			})
+		);
+	};
 
 	btnJoin.click(() => {
 		const username = txtUsername.val();
@@ -108,7 +153,7 @@ $(function onload() {
 	});
 
 	btnSend.click(() => {
-		const message = txtMessage.val();
+		const message = $.trim(txtMessage.val());
 		if (message !== '') {
 			ws.send(
 				JSON.stringify({
@@ -117,6 +162,7 @@ $(function onload() {
 				})
 			);
 		} else {
+			txtMessage.val('');
 			txtMessage.focus();
 		}
 	});
