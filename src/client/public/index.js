@@ -1,18 +1,20 @@
 $(function onload() {
+	const titleBase = document.title;
 	const ws = new WebSocket(`ws://${location.host}`);
-	let username = '';
-	let tArrUsers = [];
 
-	const objLogin = $('#login');
-	const objChat = $('#chat');
-	const objPanel = $('#panel');
+	let wsId = '';
+	let username = '';
+	let lUsers = [];
+
+	const loginWrapper = $('#loginWrapper');
+	const chatWrapper = $('#chatWrapper');
 	const txtUsername = $('#txtUsername');
 	const btnJoin = $('#btnJoin');
 	const txtChat = $('#txtChat');
 	const txtMessage = $('#txtMessage');
 	const btnSend = $('#btnSend');
 	const btnLeave = $('#btnLeave');
-	const panelUsers = $('#panelUsers');
+	const listUsers = $('#listUsers');
 
 	const chatScroll = () => {
 		txtChat.prop('scrollTop', txtChat.prop('scrollHeight'));
@@ -30,47 +32,54 @@ $(function onload() {
 		chatScroll();
 	};
 
-	const panelEmpty = () => {
-		panelUsers.val('');
-	};
-
 	const addUser = (pUserName) => {
-		tArrUsers.push(pUserName);
-		panelAddUsers(tArrUsers);
+		lUsers.push(pUserName);
+		showUsers();
 	};
 
 	const removeUser = (pUserName) => {
-		tArrUsers.splice(tArrUsers.indexOf(pUserName), 1);
-		panelAddUsers(tArrUsers);
+		lUsers.splice(lUsers.indexOf(pUserName), 1);
+		showUsers();
 	};
 
-	const panelAddUsers = (pArr) => {
-		panelEmpty();
-		pArr.sort().forEach((pName, pIndex) => {
-			panelUsers.val(`${panelUsers.val()}${pIndex + 1}. ${pName}\n`);
-		});
+	const showUsers = () => {
+		listUsers.val(
+			lUsers
+				.sort()
+				.map((x) => `- ${x}`)
+				.join('\n')
+		);
 	};
 
-	objChat.hide();
-	objPanel.hide();
+	chatWrapper.hide();
 	txtUsername.focus();
 
 	ws.addEventListener('message', (evt) => {
 		const objData = JSON.parse(evt.data);
 		switch (objData.h) {
+			case 'connectResp': {
+				const r = objData.r;
+				if (r === 'OK') {
+					wsId = objData.d;
+					document.title = `${titleBase} - ${wsId}`;
+				} else {
+					alert(r);
+				}
+				break;
+			}
 			case 'joinResp': {
 				const r = objData.r;
 				if (r === 'OK') {
 					const s = objData.s;
 					username = s;
-					objLogin.hide();
-					objChat.show();
-					objPanel.show();
+					lUsers = [];
+					loginWrapper.hide();
+					chatWrapper.show();
 					txtUsername.val('');
 					chatEmpty();
-					panelEmpty();
 					txtMessage.focus();
 					chatWriteLine(`You are connected! (${s})`);
+					showUsers();
 					getUsers();
 				} else {
 					alert(r);
@@ -94,11 +103,11 @@ $(function onload() {
 				const r = objData.r;
 				if (r === 'OK') {
 					chatEmpty();
-					panelEmpty();
+					lUsers = [];
+					showUsers();
 					username = '';
-					objLogin.show();
-					objChat.hide();
-					objPanel.hide();
+					loginWrapper.show();
+					chatWrapper.hide();
 					txtUsername.val('').focus();
 				} else {
 					alert(r);
@@ -106,8 +115,8 @@ $(function onload() {
 				break;
 			}
 			case 'getUsersResp': {
-				tArrUsers = objData.userList;
-				panelAddUsers(tArrUsers);
+				lUsers = objData.userList;
+				showUsers();
 				break;
 			}
 			case 'join': {

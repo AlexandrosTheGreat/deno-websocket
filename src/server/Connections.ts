@@ -1,4 +1,5 @@
 import { WebSocket } from 'https://deno.land/std@0.76.0/ws/mod.ts';
+import { v4 } from 'https://deno.land/std@0.76.0/uuid/mod.ts';
 
 export type Connection = { ws: WebSocket; state: boolean; name: string };
 export type ConnInfo = { id: string; conn: Connection };
@@ -24,10 +25,9 @@ export function GetConnections(): Promise<Array<ConnInfoRO>> {
 	});
 }
 
-let id = 0;
 export function AddConn(pWebSocket: WebSocket): Promise<ConnInfo> {
 	return new Promise((resolve) => {
-		const _id = (id++).toString();
+		const _id = v4.generate();
 		const objConn = { ws: pWebSocket, state: false, name: '' };
 		Connections.set(_id, objConn);
 		return resolve({ id: _id, conn: objConn });
