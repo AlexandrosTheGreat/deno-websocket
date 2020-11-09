@@ -25,7 +25,13 @@ type WSMsgJoin = { h: 'join'; d: string };
 type WSMsgLeave = { h: 'leave'; d: string };
 type WSMsgChat = { h: 'chat'; s: string; d: string };
 type WSMsgGetUsers = { h: 'getUsers' };
-type WSMessageClient = WSMsgJoin | WSMsgLeave | WSMsgChat | WSMsgGetUsers;
+type WSMsgSendFiles = { h: 'sendFiles'; d: Array<string> };
+type WSMessageClient =
+	| WSMsgJoin
+	| WSMsgLeave
+	| WSMsgChat
+	| WSMsgGetUsers
+	| WSMsgSendFiles;
 
 type WSMsgConnectResp = { h: 'connectResp'; d: string; r: string };
 type WSMsgJoinResp = { h: 'joinResp'; s: string; r: string };
@@ -91,6 +97,9 @@ export async function HandleWSConn(pWebSocket: WebSocket): Promise<void> {
 					}
 					case 'getUsers': {
 						await RespondGetUsers(_connInfo);
+						break;
+					}
+					case 'sendFiles': {
 						break;
 					}
 					default: {

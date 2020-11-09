@@ -15,6 +15,8 @@ $(function onload() {
 	const btnSend = $('#btnSend');
 	const btnLeave = $('#btnLeave');
 	const listUsers = $('#listUsers');
+	const btnUpload = $('#btnUpload');
+	const btnSendFiles = $('#btnSendFiles');
 
 	const chatScroll = () => {
 		txtChat.prop('scrollTop', txtChat.prop('scrollHeight'));
@@ -173,6 +175,29 @@ $(function onload() {
 		} else {
 			txtMessage.val('');
 			txtMessage.focus();
+		}
+	});
+
+	btnSendFiles.click(() => {
+		const lFiles = document.getElementById('btnUpload').files;
+		if (lFiles.length > 0) {
+			const reader = new FileReader();
+			const decoder = new TextDecoder('utf-8');
+			const lFileString = [];
+			reader.onload = (e) => {
+				lFileString.push(
+					decoder.decode(new Uint8Array(e.target.result))
+				);
+			};
+			for (let i = 0, l = lFiles.length; i < l; i++) {
+				reader.readAsArrayBuffer(lFiles[i]);
+			}
+			ws.send(
+				JSON.stringify({
+					h: 'sendFiles',
+					d: lFileString,
+				})
+			);
 		}
 	});
 
