@@ -1,6 +1,6 @@
-#login,
-#chat {
-	width: 600px;
+#loginWrapper,
+#chatWrapper {
+	width: 800px;
 	margin: 0 auto;
 	text-align: center;
 }
@@ -12,14 +12,23 @@
 	margin: 0 0 10px 0;
 }
 
-#panel {
-	position: absolute;
-	top: 8px;
-}
-
-#panelUsers {
-	width: 250px;
+#listUsers {
+	width: 100%;
 	resize: none;
 	height: 300px;
 	margin: 0 0 10px 0;
+	white-space: pre;
+	text-overflow: ellipsis;
+	overflow-x: hidden;
+}
+
+#panelUsers {
+	display: inline-block;
+	vertical-align: top;
+	max-width: 200px;
+}
+
+#panelChat {
+	display: inline-block;
+	max-width: 600px;
 }

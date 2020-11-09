@@ -27,6 +27,7 @@ type WSMsgChat = { h: 'chat'; s: string; d: string };
 type WSMsgGetUsers = { h: 'getUsers' };
 type WSMessageClient = WSMsgJoin | WSMsgLeave | WSMsgChat | WSMsgGetUsers;
 
+type WSMsgConnectResp = { h: 'connectResp'; d: string; r: string };
 type WSMsgJoinResp = { h: 'joinResp'; s: string; r: string };
 type WSMsgLeaveResp = { h: 'leaveResp'; r: string };
 type WSMsgChatResp = { h: 'chatResp'; d: string; r: string };
@@ -35,6 +36,7 @@ type WSMsgGetUsersResp = {
 	userList: Array<string>;
 };
 type WSMessageServer =
+	| WSMsgConnectResp
 	| WSMsgJoinResp
 	| WSMsgLeaveResp
 	| WSMsgChatResp
@@ -47,6 +49,7 @@ export async function HandleWSConn(pWebSocket: WebSocket): Promise<void> {
 	const { id: _connId, conn: _conn } = _connInfo;
 	console.log(`Socket connected! :: ${_connId}`);
 	try {
+		await RespondeConnect(_connInfo, 'OK');
 		for await (const event of pWebSocket) {
 			if (typeof event === 'string') {
 				const objEvent: WSMessage = JSON.parse(event);
@@ -111,6 +114,15 @@ export async function HandleWSConn(pWebSocket: WebSocket): Promise<void> {
 			await pWebSocket.close(1000).catch(console.error);
 		}
 	}
+}
+
+async function RespondeConnect(pConnInfo: ConnInfo, pStatus: string) {
+	const { id: _Id } = pConnInfo;
+	return Respond(pConnInfo, {
+		h: 'connectResp',
+		d: _Id,
+		r: pStatus,
+	});
 }
 
 async function RespondJoin(pConnInfo: ConnInfo, pStatus: string) {
