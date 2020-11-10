@@ -121,6 +121,16 @@ $(function onload() {
 				showUsers();
 				break;
 			}
+			case 'sendFilesResp': {
+				const data = objData.d;
+				const encoder = new TextEncoder();
+				const uint8Array = encoder.encode(data[0].fileData);
+				const url = URL.createObjectURL(new Blob([uint8Array]));
+				const tEl = `<a href="${url}" download="${data[0].fileName}"></a>`;
+				chatWriteLine(`${username}: ${tEl}`);
+				txtMessage.val('').focus();
+				break;
+			}
 			case 'join': {
 				const username = objData.d;
 				chatWriteLine(`User connect (${username})`);
@@ -178,20 +188,19 @@ $(function onload() {
 		}
 	});
 
-	btnSendFiles.click(() => {
+	btnSendFiles.click(async () => {
 		const lFiles = document.getElementById('btnUpload').files;
 		if (lFiles.length > 0) {
-			const reader = new FileReader();
 			const decoder = new TextDecoder('utf-8');
-			const lFileString = [];
-			reader.onload = (e) => {
-				lFileString.push(
-					decoder.decode(new Uint8Array(e.target.result))
-				);
-			};
-			for (let i = 0, l = lFiles.length; i < l; i++) {
-				reader.readAsArrayBuffer(lFiles[i]);
-			}
+			const tArrBuffer = await lFiles[0].arrayBuffer();
+			const fileData = decoder.decode(new Uint8Array(tArrBuffer));
+			const fileName = btnUpload.val().split('\\').pop();
+			const lFileString = [
+				{
+					fileData,
+					fileName,
+				},
+			];
 			ws.send(
 				JSON.stringify({
 					h: 'sendFiles',

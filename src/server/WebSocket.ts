@@ -25,7 +25,10 @@ type WSMsgJoin = { h: 'join'; d: string };
 type WSMsgLeave = { h: 'leave'; d: string };
 type WSMsgChat = { h: 'chat'; s: string; d: string };
 type WSMsgGetUsers = { h: 'getUsers' };
-type WSMsgSendFiles = { h: 'sendFiles'; d: Array<string> };
+type WSMsgSendFiles = {
+	h: 'sendFiles';
+	d: Array<{ fileData: string; fileName: string }>;
+};
 type WSMessageClient =
 	| WSMsgJoin
 	| WSMsgLeave
@@ -41,12 +44,17 @@ type WSMsgGetUsersResp = {
 	h: 'getUsersResp';
 	userList: Array<string>;
 };
+type WSMsgSendFilesResp = {
+	h: 'sendFilesResp';
+	d: Array<{ fileData: string; fileName: string }>;
+};
 type WSMessageServer =
 	| WSMsgConnectResp
 	| WSMsgJoinResp
 	| WSMsgLeaveResp
 	| WSMsgChatResp
-	| WSMsgGetUsersResp;
+	| WSMsgGetUsersResp
+	| WSMsgSendFilesResp;
 
 type WSMessage = WSMessageClient | WSMessageServer;
 
@@ -100,6 +108,7 @@ export async function HandleWSConn(pWebSocket: WebSocket): Promise<void> {
 						break;
 					}
 					case 'sendFiles': {
+						await RespondSendFiles(_connInfo, objEvent.d);
 						break;
 					}
 					default: {
@@ -169,6 +178,16 @@ async function RespondGetUsers(pConnInfo: ConnInfo) {
 		userList: (await GetConnections()).map(
 			(pConnection) => pConnection.conn.name
 		),
+	});
+}
+
+async function RespondSendFiles(
+	pConnInfo: ConnInfo,
+	pData: Array<{ fileData: string; fileName: string }>
+) {
+	return Respond(pConnInfo, {
+		h: 'sendFilesResp',
+		d: pData,
 	});
 }
 
