@@ -1,3 +1,4 @@
+import { v4 } from 'https://deno.land/std@0.76.0/uuid/mod.ts';
 import {
 	isWebSocketCloseEvent,
 	isWebSocketPingEvent,
@@ -15,6 +16,9 @@ import {
 
 import { UPPERCASE_USERNAMES } from './Configuration.ts';
 
+type FileInfo = { data: string; name: string };
+const UserFiles: Map<string, FileInfo> = new Map();
+
 /**
  * h: Handler
  * s: Sender
@@ -27,7 +31,7 @@ type WSMsgChat = { h: 'chat'; s: string; d: string };
 type WSMsgGetUsers = { h: 'getUsers' };
 type WSMsgSendFiles = {
 	h: 'sendFiles';
-	d: Array<{ fileData: string; fileName: string }>;
+	d: FileInfo;
 };
 type WSMessageClient =
 	| WSMsgJoin
@@ -46,7 +50,7 @@ type WSMsgGetUsersResp = {
 };
 type WSMsgSendFilesResp = {
 	h: 'sendFilesResp';
-	d: Array<{ fileData: string; fileName: string }>;
+	d: { id: string; file: FileInfo };
 };
 type WSMessageServer =
 	| WSMsgConnectResp
@@ -108,7 +112,8 @@ export async function HandleWSConn(pWebSocket: WebSocket): Promise<void> {
 						break;
 					}
 					case 'sendFiles': {
-						await RespondSendFiles(_connInfo, objEvent.d);
+						const idAndfileInfo = await AddUserFiles(objEvent.d);
+						await RespondSendFiles(_connInfo, idAndfileInfo);
 						break;
 					}
 					default: {
@@ -183,7 +188,7 @@ async function RespondGetUsers(pConnInfo: ConnInfo) {
 
 async function RespondSendFiles(
 	pConnInfo: ConnInfo,
-	pData: Array<{ fileData: string; fileName: string }>
+	pData: { id: string; file: FileInfo }
 ) {
 	return Respond(pConnInfo, {
 		h: 'sendFilesResp',
@@ -238,4 +243,39 @@ async function Respond(
 	if (await CheckConnById(_Id)) {
 		await _WS.send(JSON.stringify(pMessage));
 	}
+}
+
+async function AddUserFiles(
+	pData: FileInfo
+): Promise<{ id: string; file: FileInfo }> {
+	return new Promise((resolve) => {
+		const _id = v4.generate();
+		UserFiles.set(_id, pData);
+		return resolve({ id: _id, file: pData });
+	});
+}
+
+async function FindUserFilesById(pId: string): Promise<FileInfo | null> {
+	return new Promise((resolve) => {
+		const fileData = UserFiles.get(pId);
+		return resolve(fileData ? fileData : null);
+	});
+}
+
+async function RemoveUserFilesId(pId: string): Promise<Boolean> {
+	return new Promise((resolve) => {
+		resolve(UserFiles.delete(pId));
+	});
+}
+
+async function CheckUserFilesById(pId: string): Promise<Boolean> {
+	return new Promise((resolve) => {
+		resolve(!!UserFiles.get(pId));
+	});
+}
+
+async function CountUserFiles(): Promise<number> {
+	return new Promise((resolve) => {
+		return resolve(UserFiles.size);
+	});
 }

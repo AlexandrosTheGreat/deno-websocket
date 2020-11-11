@@ -122,11 +122,13 @@ $(function onload() {
 				break;
 			}
 			case 'sendFilesResp': {
-				const data = objData.d;
-				const encoder = new TextEncoder();
-				const uint8Array = encoder.encode(data[0].fileData);
-				const url = URL.createObjectURL(new Blob([uint8Array]));
-				const tEl = `<a href="${url}" download="${data[0].fileName}"></a>`;
+				const dataObj = objData.d;
+				const id = dataObj.id;
+				const file = dataObj.file;
+				const fileData = file.data;
+				const fileName = file.name;
+				const url = URL.createObjectURL(new Blob([fileData]));
+				const tEl = `<a data-fileId="${id}" href="${url}" download="${fileName}"></a>`;
 				chatWriteLine(`${username}: ${tEl}`);
 				txtMessage.val('').focus();
 				break;
@@ -189,22 +191,18 @@ $(function onload() {
 	});
 
 	btnSendFiles.click(async () => {
-		const lFiles = document.getElementById('btnUpload').files;
-		if (lFiles.length > 0) {
-			const decoder = new TextDecoder('utf-8');
-			const tArrBuffer = await lFiles[0].arrayBuffer();
-			const fileData = decoder.decode(new Uint8Array(tArrBuffer));
-			const fileName = btnUpload.val().split('\\').pop();
-			const lFileString = [
-				{
-					fileData,
-					fileName,
-				},
-			];
+		const file = document.getElementById('btnUpload').files[0];
+		if (file) {
+			const fileData = await file.text();
+			const fileName = file.name;
+			const fileObj = {
+				data: fileData,
+				name: fileName,
+			};
 			ws.send(
 				JSON.stringify({
 					h: 'sendFiles',
-					d: lFileString,
+					d: fileObj,
 				})
 			);
 		}
