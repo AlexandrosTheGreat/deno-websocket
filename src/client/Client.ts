@@ -1,4 +1,4 @@
-import { ServerRequest } from 'https://deno.land/std@0.76.0/http/server.ts';
+import { ServerRequest } from '../common/Dependency.ts';
 
 const PUBLIC_PATH = `${Deno.cwd()}/src/client/public`;
 
