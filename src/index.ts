@@ -1,5 +1,4 @@
-import { serve } from 'https://deno.land/std@0.76.0/http/server.ts';
-import { acceptable } from 'https://deno.land/std@0.76.0/ws/mod.ts';
+import { serve, acceptable } from './common/Dependency.ts';
 import { HandleServer } from './server/Server.ts';
 import { HandleClient } from './client/Client.ts';
 
