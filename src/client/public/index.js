@@ -53,6 +53,15 @@ $(function onload() {
 		);
 	};
 
+	const generateLinkFromFileData = (pData) => {
+		const tId = pData.id;
+		const tFile = pData.file;
+		const tFileData = tFile.data;
+		const tFileName = tFile.name;
+		const tURL = URL.createObjectURL(new Blob([tFileData]));
+		return `<a data-fileId="${tId}" href="${tURL}" download="${tFileName}"></a>`;
+	};
+
 	chatWrapper.hide();
 	txtUsername.focus();
 
@@ -122,15 +131,15 @@ $(function onload() {
 				break;
 			}
 			case 'sendFilesResp': {
-				const dataObj = objData.d;
-				const id = dataObj.id;
-				const file = dataObj.file;
-				const fileData = file.data;
-				const fileName = file.name;
-				const url = URL.createObjectURL(new Blob([fileData]));
-				const tEl = `<a data-fileId="${id}" href="${url}" download="${fileName}"></a>`;
-				chatWriteLine(`${username}: ${tEl}`);
+				const tLink = generateLinkFromFileData(objData.d);
+				chatWriteLine(`${username}: ${tLink}`);
 				txtMessage.val('').focus();
+				break;
+			}
+			case 'sendFiles': {
+				const username = objData.s;
+				const tLink = generateLinkFromFileData(objData.d);
+				chatWriteLine(`${username}: ${tLink}`);
 				break;
 			}
 			case 'join': {
@@ -196,8 +205,10 @@ $(function onload() {
 			const fileData = await file.text();
 			const fileName = file.name;
 			const fileObj = {
-				data: fileData,
-				name: fileName,
+				file: {
+					data: fileData,
+					name: fileName,
+				},
 			};
 			ws.send(
 				JSON.stringify({

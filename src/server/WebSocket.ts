@@ -36,7 +36,8 @@ type WSMsgChat = { h: 'chat'; s: string; d: string };
 type WSMsgGetUsers = { h: 'getUsers' };
 type WSMsgSendFiles = {
 	h: 'sendFiles';
-	d: FileInfo;
+	s?: string;
+	d: { id?: string; file: FileInfo };
 };
 type WSMessageClient =
 	| WSMsgJoin
@@ -159,6 +160,7 @@ export async function HandleWSConn(pWebSocket: WebSocket): Promise<void> {
 					}
 					case 'sendFiles': {
 						const idAndfileInfo = await AddUserFiles(objEvent.d);
+						await BroadcastSendFiles(_connInfo, idAndfileInfo);
 						await RespondSendFiles(_connInfo, idAndfileInfo);
 						break;
 					}
@@ -245,6 +247,19 @@ async function RespondSendFiles(
 	});
 }
 
+async function BroadcastSendFiles(
+	pConnInfo: ConnInfo,
+	pData: { id: string; file: FileInfo }
+) {
+	const { id: _SenderId, conn: _SenderConn } = pConnInfo;
+	const { name: _SenderName } = _SenderConn;
+	return Broadcast(_SenderId, {
+		h: 'sendFiles',
+		s: _SenderName,
+		d: pData,
+	});
+}
+
 function BroadcastJoin(pSrcInfo: ConnInfo) {
 	const { id: _SenderId, conn: _SenderConn } = pSrcInfo;
 	const { name: _SenderName } = _SenderConn;
@@ -294,13 +309,14 @@ async function Respond(
 	}
 }
 
-async function AddUserFiles(
-	pData: FileInfo
-): Promise<{ id: string; file: FileInfo }> {
+async function AddUserFiles(pData: {
+	id?: string;
+	file: FileInfo;
+}): Promise<{ id: string; file: FileInfo }> {
 	return new Promise((resolve) => {
 		const _id = v4.generate();
-		UserFiles.set(_id, pData);
-		return resolve({ id: _id, file: pData });
+		UserFiles.set(_id, pData.file);
+		return resolve({ id: _id, file: pData.file });
 	});
 }
 
