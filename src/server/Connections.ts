@@ -1,5 +1,4 @@
-import { WebSocket } from 'https://deno.land/std@0.76.0/ws/mod.ts';
-import { v4 } from 'https://deno.land/std@0.76.0/uuid/mod.ts';
+import { WebSocket, v4 } from '../common/Dependency.ts';
 
 export type Connection = { ws: WebSocket; state: boolean; name: string };
 export type ConnInfo = { id: string; conn: Connection };

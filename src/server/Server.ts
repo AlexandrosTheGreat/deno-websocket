@@ -1,5 +1,4 @@
-import { acceptWebSocket } from 'https://deno.land/std@0.76.0/ws/mod.ts';
-import { ServerRequest } from 'https://deno.land/std@0.76.0/http/server.ts';
+import { acceptWebSocket, ServerRequest } from '../common/Dependency.ts';
 import { HandleWSConn } from './WebSocket.ts';
 
 export async function HandleServer(pRequest: ServerRequest): Promise<void> {
