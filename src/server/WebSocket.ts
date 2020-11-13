@@ -10,9 +10,8 @@ import {
 } from './Connections.ts';
 
 import { UPPERCASE_USERNAMES } from './Configuration.ts';
+import { AddFile } from './Uploads.ts';
 
-// type FileInfo = { data: string; name: string };
-// const UserFiles: Map<string, FileInfo> = new Map();
 const enum MsgStatus {
 	OK = 'OK',
 	NOK = 'NOK',
@@ -82,7 +81,16 @@ type WSBroadcastChat = {
 	username: string;
 	msg: string;
 };
-type WSBroadcastMessage = WSBroadcastJoin | WSBroadcastLeave | WSBroadcastChat;
+type WSBroadcastSendFile = {
+	type: 'broadcast-sendFile';
+	username: string;
+	id: string;
+};
+type WSBroadcastMessage =
+	| WSBroadcastJoin
+	| WSBroadcastLeave
+	| WSBroadcastChat
+	| WSBroadcastSendFile;
 
 /// WSMessage type
 type WSMessage = WSClientMessage | WSRespondMessage | WSBroadcastMessage;
@@ -177,9 +185,19 @@ export async function HandleWSConn(pWebSocket: WebSocket): Promise<void> {
 						break;
 					}
 					case 'sendFile': {
-						// const idAndfileInfo = await AddUserFiles(objEvent);
-						// await BroadcastSendFiles(_connInfo, idAndfileInfo);
-						// await RespondSendFiles(_connInfo, idAndfileInfo);
+						if (_conn.state) {
+							const fileName = objEvent.fileInfo.name;
+							const fileData = objEvent.fileInfo.data;
+							const _id = await AddFile(fileName, fileData);
+							await BroadcastSendFile(_connInfo, _id);
+							await RespondSendFile(_connInfo, MsgStatus.OK, _id);
+						} else {
+							await RespondSendFile(
+								_connInfo,
+								MsgStatus.NOT_IN_CHAT,
+								''
+							);
+						}
 						break;
 					}
 					default: {
@@ -255,28 +273,27 @@ async function RespondGetUsers(
 	});
 }
 
-// async function RespondSendFiles(
-// 	pConnInfo: ConnInfo,
-// 	pData: { id: string; file: FileInfo }
-// ) {
-// 	return Respond(pConnInfo, {
-// 		h: 'sendFilesResp',
-// 		d: pData,
-// 	});
-// }
+async function RespondSendFile(
+	pConnInfo: ConnInfo,
+	pStatus: MsgStatus,
+	pId: string
+) {
+	return Respond(pConnInfo, {
+		type: 'respond-sendFile',
+		status: pStatus,
+		id: pId,
+	});
+}
 
-// async function BroadcastSendFiles(
-// 	pConnInfo: ConnInfo,
-// 	pData: { id: string; file: FileInfo }
-// ) {
-// 	const { id: _SenderId, conn: _SenderConn } = pConnInfo;
-// 	const { name: _SenderName } = _SenderConn;
-// 	return Broadcast(_SenderId, {
-// 		h: 'sendFiles',
-// 		s: _SenderName,
-// 		d: pData,
-// 	});
-// }
+async function BroadcastSendFile(pConnInfo: ConnInfo, pId: string) {
+	const { id: _SenderId, conn: _SenderConn } = pConnInfo;
+	const { name: _SenderName } = _SenderConn;
+	return Broadcast(_SenderId, {
+		type: 'broadcast-sendFile',
+		username: _SenderName,
+		id: pId,
+	});
+}
 
 function BroadcastJoin(pSrcInfo: ConnInfo) {
 	const { id: _SenderId, conn: _SenderConn } = pSrcInfo;
@@ -305,42 +322,6 @@ function BroadcastChat(pSrcInfo: ConnInfo, pChatMsg: string) {
 		msg: pChatMsg,
 	});
 }
-
-// async function AddUserFiles(pData: {
-// 	id?: string;
-// 	file: FileInfo;
-// }): Promise<{ id: string; file: FileInfo }> {
-// 	return new Promise((resolve) => {
-// 		const _id = v4.generate();
-// 		UserFiles.set(_id, pData.file);
-// 		return resolve({ id: _id, file: pData.file });
-// 	});
-// }
-
-// async function FindUserFilesById(pId: string): Promise<FileInfo | null> {
-// 	return new Promise((resolve) => {
-// 		const fileData = UserFiles.get(pId);
-// 		return resolve(fileData ? fileData : null);
-// 	});
-// }
-
-// async function RemoveUserFilesId(pId: string): Promise<Boolean> {
-// 	return new Promise((resolve) => {
-// 		resolve(UserFiles.delete(pId));
-// 	});
-// }
-
-// async function CheckUserFilesById(pId: string): Promise<Boolean> {
-// 	return new Promise((resolve) => {
-// 		resolve(!!UserFiles.get(pId));
-// 	});
-// }
-
-// async function CountUserFiles(): Promise<number> {
-// 	return new Promise((resolve) => {
-// 		return resolve(UserFiles.size);
-// 	});
-// }
 
 async function Broadcast(
 	pSrcId: string,
