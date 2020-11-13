@@ -1,4 +1,3 @@
-import { v4 } from 'https://deno.land/std@0.76.0/uuid/mod.ts';
 import { isWebSocketCloseEvent, WebSocket } from '../common/Dependency.ts';
 
 import {
@@ -12,8 +11,8 @@ import {
 
 import { UPPERCASE_USERNAMES } from './Configuration.ts';
 
-type FileInfo = { data: string; name: string };
-const UserFiles: Map<string, FileInfo> = new Map();
+// type FileInfo = { data: string; name: string };
+// const UserFiles: Map<string, FileInfo> = new Map();
 const enum MsgStatus {
 	OK = 'OK',
 	NOK = 'NOK',
@@ -24,66 +23,85 @@ const enum MsgStatus {
 	ALREADY_IN_CHAT = 'ALREADY_IN_CHAT',
 }
 
-/**
- * h: Handler
- * s: Sender
- * d: Data
- * r: Message status
- */
-type WSMsgJoin = { h: 'join'; d: string };
-type WSMsgLeave = { h: 'leave'; d: string };
-type WSMsgChat = { h: 'chat'; s: string; d: string };
-type WSMsgGetUsers = { h: 'getUsers' };
-type WSMsgSendFiles = {
-	h: 'sendFiles';
-	s?: string;
-	d: { id?: string; file: FileInfo };
+/// (Client -> Server) Messages
+type WSClientJoin = { type: 'join'; username: string };
+type WSClientLeave = { type: 'leave' };
+type WSClientChat = { type: 'chat'; msg: string };
+type WSClientGetUsers = { type: 'getUsers' };
+type WSClientSendFile = {
+	type: 'sendFile';
+	fileInfo: { data: string; name: string };
 };
-type WSMessageClient =
-	| WSMsgJoin
-	| WSMsgLeave
-	| WSMsgChat
-	| WSMsgGetUsers
-	| WSMsgSendFiles;
+type WSClientMessage =
+	| WSClientJoin
+	| WSClientLeave
+	| WSClientChat
+	| WSClientGetUsers
+	| WSClientSendFile;
 
-type WSMsgConnectResp = { h: 'connectResp'; d: string; r: MsgStatus };
-type WSMsgJoinResp = { h: 'joinResp'; s: string; r: MsgStatus };
-type WSMsgLeaveResp = { h: 'leaveResp'; r: MsgStatus };
-type WSMsgChatResp = { h: 'chatResp'; d: string; r: MsgStatus };
-type WSMsgGetUsersResp = {
-	h: 'getUsersResp';
+/// (Server -> Client) Response Messsages
+type WSRespondConnect = {
+	type: 'respond-connect';
+	status: MsgStatus;
+	id: string;
+};
+type WSRespondJoin = {
+	type: 'respond-join';
+	status: MsgStatus;
+	username: string;
+};
+type WSRespondLeave = { type: 'respond-leave'; status: MsgStatus };
+type WSRespondChat = {
+	type: 'respond-chat';
+	status: MsgStatus;
+	msg: string;
+};
+type WSRespondGetUsers = {
+	type: 'respond-getUsers';
+	status: MsgStatus;
 	userList: Array<string>;
-	r: MsgStatus;
 };
-type WSMsgSendFilesResp = {
-	h: 'sendFilesResp';
-	d: { id: string; file: FileInfo };
+type WSRespondSendFile = {
+	type: 'respond-sendFile';
+	status: MsgStatus;
+	id: string;
 };
-type WSMessageServer =
-	| WSMsgConnectResp
-	| WSMsgJoinResp
-	| WSMsgLeaveResp
-	| WSMsgChatResp
-	| WSMsgGetUsersResp
-	| WSMsgSendFilesResp;
+type WSRespondMessage =
+	| WSRespondConnect
+	| WSRespondJoin
+	| WSRespondLeave
+	| WSRespondChat
+	| WSRespondGetUsers
+	| WSRespondSendFile;
 
-type WSMessage = WSMessageClient | WSMessageServer;
+/// (Server -> Client) Broadcast Messages
+type WSBroadcastJoin = { type: 'broadcast-join'; username: string };
+type WSBroadcastLeave = { type: 'broadcast-leave'; username: string };
+type WSBroadcastChat = {
+	type: 'broadcast-chat';
+	username: string;
+	msg: string;
+};
+type WSBroadcastMessage = WSBroadcastJoin | WSBroadcastLeave | WSBroadcastChat;
+
+/// WSMessage type
+type WSMessage = WSClientMessage | WSRespondMessage | WSBroadcastMessage;
 
 export async function HandleWSConn(pWebSocket: WebSocket): Promise<void> {
 	const _connInfo = await AddConn(pWebSocket);
 	const { id: _connId, conn: _conn } = _connInfo;
 	console.log(`Socket connected! :: ${_connId}`);
 	try {
-		await RespondeConnect(_connInfo, MsgStatus.OK);
+		await RespondConnect(_connInfo, MsgStatus.OK);
 		for await (const event of pWebSocket) {
 			if (typeof event === 'string') {
-				const objEvent: WSMessage = JSON.parse(event);
-				switch (objEvent.h) {
+				const objEvent: WSClientMessage = JSON.parse(event);
+				switch (objEvent.type) {
 					case 'join': {
 						if (!_conn.state) {
 							const _name = UPPERCASE_USERNAMES
-								? objEvent.d.toUpperCase()
-								: objEvent.d;
+								? objEvent.username.toUpperCase()
+								: objEvent.username;
 							if (!/^[a-zA-Z0-9]+$/i.test(_name)) {
 								await RespondJoin(
 									_connInfo,
@@ -124,17 +142,17 @@ export async function HandleWSConn(pWebSocket: WebSocket): Promise<void> {
 					}
 					case 'chat': {
 						if (_conn.state) {
-							await BroadcastChat(_connInfo, objEvent.d);
+							await BroadcastChat(_connInfo, objEvent.msg);
 							await RespondChat(
 								_connInfo,
 								MsgStatus.OK,
-								objEvent.d
+								objEvent.msg
 							);
 						} else {
 							await RespondChat(
 								_connInfo,
 								MsgStatus.NOT_IN_CHAT,
-								objEvent.d
+								''
 							);
 						}
 						break;
@@ -146,22 +164,22 @@ export async function HandleWSConn(pWebSocket: WebSocket): Promise<void> {
 							);
 							await RespondGetUsers(
 								_connInfo,
-								lUser,
-								MsgStatus.OK
+								MsgStatus.OK,
+								lUser
 							);
 						} else {
 							await RespondGetUsers(
 								_connInfo,
-								[],
-								MsgStatus.NOT_IN_CHAT
+								MsgStatus.NOT_IN_CHAT,
+								[]
 							);
 						}
 						break;
 					}
-					case 'sendFiles': {
-						const idAndfileInfo = await AddUserFiles(objEvent.d);
-						await BroadcastSendFiles(_connInfo, idAndfileInfo);
-						await RespondSendFiles(_connInfo, idAndfileInfo);
+					case 'sendFile': {
+						// const idAndfileInfo = await AddUserFiles(objEvent);
+						// await BroadcastSendFiles(_connInfo, idAndfileInfo);
+						// await RespondSendFiles(_connInfo, idAndfileInfo);
 						break;
 					}
 					default: {
@@ -187,12 +205,12 @@ export async function HandleWSConn(pWebSocket: WebSocket): Promise<void> {
 	}
 }
 
-async function RespondeConnect(pConnInfo: ConnInfo, pStatus: MsgStatus) {
+async function RespondConnect(pConnInfo: ConnInfo, pStatus: MsgStatus) {
 	const { id: _Id } = pConnInfo;
 	return Respond(pConnInfo, {
-		h: 'connectResp',
-		d: _Id,
-		r: pStatus,
+		type: 'respond-connect',
+		status: pStatus,
+		id: _Id,
 	});
 }
 
@@ -200,16 +218,16 @@ async function RespondJoin(pConnInfo: ConnInfo, pStatus: MsgStatus) {
 	const { id: _Id, conn: _Conn } = pConnInfo;
 	const { name: _Name } = _Conn;
 	return Respond(pConnInfo, {
-		h: 'joinResp',
-		s: _Name,
-		r: pStatus,
+		type: 'respond-join',
+		status: pStatus,
+		username: _Name,
 	});
 }
 
 async function RespondLeave(pConnInfo: ConnInfo, pStatus: MsgStatus) {
 	return Respond(pConnInfo, {
-		h: 'leaveResp',
-		r: pStatus,
+		type: 'respond-leave',
+		status: pStatus,
 	});
 }
 
@@ -219,53 +237,53 @@ async function RespondChat(
 	pChatMsg: string
 ) {
 	return Respond(pConnInfo, {
-		h: 'chatResp',
-		d: pChatMsg,
-		r: pStatus,
+		type: 'respond-chat',
+		status: pStatus,
+		msg: pChatMsg,
 	});
 }
 
 async function RespondGetUsers(
 	pConnInfo: ConnInfo,
-	pListUser: Array<string>,
-	pStatus: MsgStatus
+	pStatus: MsgStatus,
+	pListUser: Array<string>
 ) {
 	return Respond(pConnInfo, {
-		h: 'getUsersResp',
+		type: 'respond-getUsers',
+		status: pStatus,
 		userList: pListUser,
-		r: pStatus,
 	});
 }
 
-async function RespondSendFiles(
-	pConnInfo: ConnInfo,
-	pData: { id: string; file: FileInfo }
-) {
-	return Respond(pConnInfo, {
-		h: 'sendFilesResp',
-		d: pData,
-	});
-}
+// async function RespondSendFiles(
+// 	pConnInfo: ConnInfo,
+// 	pData: { id: string; file: FileInfo }
+// ) {
+// 	return Respond(pConnInfo, {
+// 		h: 'sendFilesResp',
+// 		d: pData,
+// 	});
+// }
 
-async function BroadcastSendFiles(
-	pConnInfo: ConnInfo,
-	pData: { id: string; file: FileInfo }
-) {
-	const { id: _SenderId, conn: _SenderConn } = pConnInfo;
-	const { name: _SenderName } = _SenderConn;
-	return Broadcast(_SenderId, {
-		h: 'sendFiles',
-		s: _SenderName,
-		d: pData,
-	});
-}
+// async function BroadcastSendFiles(
+// 	pConnInfo: ConnInfo,
+// 	pData: { id: string; file: FileInfo }
+// ) {
+// 	const { id: _SenderId, conn: _SenderConn } = pConnInfo;
+// 	const { name: _SenderName } = _SenderConn;
+// 	return Broadcast(_SenderId, {
+// 		h: 'sendFiles',
+// 		s: _SenderName,
+// 		d: pData,
+// 	});
+// }
 
 function BroadcastJoin(pSrcInfo: ConnInfo) {
 	const { id: _SenderId, conn: _SenderConn } = pSrcInfo;
 	const { name: _SenderName } = _SenderConn;
 	return Broadcast(_SenderId, {
-		h: 'join',
-		d: _SenderName,
+		type: 'broadcast-join',
+		username: _SenderName,
 	});
 }
 
@@ -273,8 +291,8 @@ function BroadcastLeave(pSrcInfo: ConnInfo) {
 	const { id: _SenderId, conn: _SenderConn } = pSrcInfo;
 	const { name: _SenderName } = _SenderConn;
 	return Broadcast(_SenderId, {
-		h: 'leave',
-		d: _SenderName,
+		type: 'broadcast-leave',
+		username: _SenderName,
 	});
 }
 
@@ -282,13 +300,52 @@ function BroadcastChat(pSrcInfo: ConnInfo, pChatMsg: string) {
 	const { id: _SenderId, conn: _SenderConn } = pSrcInfo;
 	const { name: _SenderName } = _SenderConn;
 	return Broadcast(_SenderId, {
-		h: 'chat',
-		s: _SenderName,
-		d: pChatMsg,
+		type: 'broadcast-chat',
+		username: _SenderName,
+		msg: pChatMsg,
 	});
 }
 
-async function Broadcast(pSrcId: string, pMessage: WSMessage): Promise<void> {
+// async function AddUserFiles(pData: {
+// 	id?: string;
+// 	file: FileInfo;
+// }): Promise<{ id: string; file: FileInfo }> {
+// 	return new Promise((resolve) => {
+// 		const _id = v4.generate();
+// 		UserFiles.set(_id, pData.file);
+// 		return resolve({ id: _id, file: pData.file });
+// 	});
+// }
+
+// async function FindUserFilesById(pId: string): Promise<FileInfo | null> {
+// 	return new Promise((resolve) => {
+// 		const fileData = UserFiles.get(pId);
+// 		return resolve(fileData ? fileData : null);
+// 	});
+// }
+
+// async function RemoveUserFilesId(pId: string): Promise<Boolean> {
+// 	return new Promise((resolve) => {
+// 		resolve(UserFiles.delete(pId));
+// 	});
+// }
+
+// async function CheckUserFilesById(pId: string): Promise<Boolean> {
+// 	return new Promise((resolve) => {
+// 		resolve(!!UserFiles.get(pId));
+// 	});
+// }
+
+// async function CountUserFiles(): Promise<number> {
+// 	return new Promise((resolve) => {
+// 		return resolve(UserFiles.size);
+// 	});
+// }
+
+async function Broadcast(
+	pSrcId: string,
+	pMessage: WSBroadcastMessage
+): Promise<void> {
 	for (const pTgtInfo of await GetConnections()) {
 		const { id: _TargetId, conn: _TargetConn } = pTgtInfo;
 		const { ws: _TargetWS } = _TargetConn;
@@ -300,47 +357,11 @@ async function Broadcast(pSrcId: string, pMessage: WSMessage): Promise<void> {
 
 async function Respond(
 	pConnInfo: ConnInfo,
-	pMessage: WSMessage
+	pMessage: WSRespondMessage
 ): Promise<void> {
 	const { id: _Id, conn: _Conn } = pConnInfo;
 	const { name: _Name, ws: _WS } = _Conn;
 	if (await CheckConnById(_Id)) {
 		await _WS.send(JSON.stringify(pMessage));
 	}
-}
-
-async function AddUserFiles(pData: {
-	id?: string;
-	file: FileInfo;
-}): Promise<{ id: string; file: FileInfo }> {
-	return new Promise((resolve) => {
-		const _id = v4.generate();
-		UserFiles.set(_id, pData.file);
-		return resolve({ id: _id, file: pData.file });
-	});
-}
-
-async function FindUserFilesById(pId: string): Promise<FileInfo | null> {
-	return new Promise((resolve) => {
-		const fileData = UserFiles.get(pId);
-		return resolve(fileData ? fileData : null);
-	});
-}
-
-async function RemoveUserFilesId(pId: string): Promise<Boolean> {
-	return new Promise((resolve) => {
-		resolve(UserFiles.delete(pId));
-	});
-}
-
-async function CheckUserFilesById(pId: string): Promise<Boolean> {
-	return new Promise((resolve) => {
-		resolve(!!UserFiles.get(pId));
-	});
-}
-
-async function CountUserFiles(): Promise<number> {
-	return new Promise((resolve) => {
-		return resolve(UserFiles.size);
-	});
 }

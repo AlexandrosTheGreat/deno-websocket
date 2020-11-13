@@ -7,6 +7,7 @@
 		}
 	},
 	"watcher": {
-		"match": ["src/**/*.*"]
+		"match": ["src/**/*.*"],
+		"skip": ["src/client/public/**/*.*"]
 	}
 }
