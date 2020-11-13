@@ -7,5 +7,8 @@
     "editor.formatOnType": false,
     "editor.formatOnSave": true,
     "prettier.singleQuote": true,
+    "deno.import_intellisense_origins": {
+        "https://deno.land": true
+    },
     //"editor.formatOnSaveMode": "modifications",
 }

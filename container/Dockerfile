@@ -8,9 +8,20 @@ RUN usermod -u 1000 deno \
     && mkdir -p /home/deno \
     && chown deno:deno /home/deno \
     && chmod 751 /home/deno \ 
-    && rm -rf /usr/local/bin/docker-entrypoint.sh
+    && rm -rf /usr/local/bin/docker-entrypoint.sh \
+    # Install git
+    && apt-get update \
+    && apt-get install -y git \
+    && apt-get autoremove -y \
+    && apt-get clean -y \
+    && rm -rf /var/lib/apt/lists/* \
+    && chown deno:deno /usr/local/bin
 
 USER deno
+
+# Install denon
+RUN deno install -qAf --unstable https://deno.land/x/denon@2.4.4/denon.ts
+
 WORKDIR /workspace
 ENTRYPOINT []
 CMD []
