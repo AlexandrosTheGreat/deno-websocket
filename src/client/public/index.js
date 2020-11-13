@@ -15,6 +15,8 @@ $(function onload() {
 	const btnSend = $('#btnSend');
 	const btnLeave = $('#btnLeave');
 	const listUsers = $('#listUsers');
+	const btnUpload = $('#btnUpload');
+	const btnSendFiles = $('#btnSendFiles');
 
 	const chatScroll = () => {
 		txtChat.prop('scrollTop', txtChat.prop('scrollHeight'));
@@ -49,6 +51,15 @@ $(function onload() {
 				.map((x) => `- ${x}`)
 				.join('\n')
 		);
+	};
+
+	const generateLinkFromFileData = (pData) => {
+		const tId = pData.id;
+		const tFile = pData.file;
+		const tFileData = tFile.data;
+		const tFileName = tFile.name;
+		const tURL = URL.createObjectURL(new Blob([tFileData]));
+		return `<a data-fileId="${tId}" href="${tURL}" download="${tFileName}"></a>`;
 	};
 
 	chatWrapper.hide();
@@ -119,6 +130,18 @@ $(function onload() {
 				showUsers();
 				break;
 			}
+			case 'sendFilesResp': {
+				const tLink = generateLinkFromFileData(objData.d);
+				chatWriteLine(`${username}: ${tLink}`);
+				txtMessage.val('').focus();
+				break;
+			}
+			case 'sendFiles': {
+				const username = objData.s;
+				const tLink = generateLinkFromFileData(objData.d);
+				chatWriteLine(`${username}: ${tLink}`);
+				break;
+			}
 			case 'join': {
 				const username = objData.d;
 				chatWriteLine(`User connect (${username})`);
@@ -173,6 +196,26 @@ $(function onload() {
 		} else {
 			txtMessage.val('');
 			txtMessage.focus();
+		}
+	});
+
+	btnSendFiles.click(async () => {
+		const file = document.getElementById('btnUpload').files[0];
+		if (file) {
+			const fileData = await file.text();
+			const fileName = file.name;
+			const fileObj = {
+				file: {
+					data: fileData,
+					name: fileName,
+				},
+			};
+			ws.send(
+				JSON.stringify({
+					h: 'sendFiles',
+					d: fileObj,
+				})
+			);
 		}
 	});
 

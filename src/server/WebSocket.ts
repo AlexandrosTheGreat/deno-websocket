@@ -1,3 +1,4 @@
+import { v4 } from 'https://deno.land/std@0.76.0/uuid/mod.ts';
 import { isWebSocketCloseEvent, WebSocket } from '../common/Dependency.ts';
 
 import {
@@ -11,6 +12,8 @@ import {
 
 import { UPPERCASE_USERNAMES } from './Configuration.ts';
 
+type FileInfo = { data: string; name: string };
+const UserFiles: Map<string, FileInfo> = new Map();
 const enum MsgStatus {
 	OK = 'OK',
 	NOK = 'NOK',
@@ -31,7 +34,17 @@ type WSMsgJoin = { h: 'join'; d: string };
 type WSMsgLeave = { h: 'leave'; d: string };
 type WSMsgChat = { h: 'chat'; s: string; d: string };
 type WSMsgGetUsers = { h: 'getUsers' };
-type WSMessageClient = WSMsgJoin | WSMsgLeave | WSMsgChat | WSMsgGetUsers;
+type WSMsgSendFiles = {
+	h: 'sendFiles';
+	s?: string;
+	d: { id?: string; file: FileInfo };
+};
+type WSMessageClient =
+	| WSMsgJoin
+	| WSMsgLeave
+	| WSMsgChat
+	| WSMsgGetUsers
+	| WSMsgSendFiles;
 
 type WSMsgConnectResp = { h: 'connectResp'; d: string; r: MsgStatus };
 type WSMsgJoinResp = { h: 'joinResp'; s: string; r: MsgStatus };
@@ -42,12 +55,17 @@ type WSMsgGetUsersResp = {
 	userList: Array<string>;
 	r: MsgStatus;
 };
+type WSMsgSendFilesResp = {
+	h: 'sendFilesResp';
+	d: { id: string; file: FileInfo };
+};
 type WSMessageServer =
 	| WSMsgConnectResp
 	| WSMsgJoinResp
 	| WSMsgLeaveResp
 	| WSMsgChatResp
-	| WSMsgGetUsersResp;
+	| WSMsgGetUsersResp
+	| WSMsgSendFilesResp;
 
 type WSMessage = WSMessageClient | WSMessageServer;
 
@@ -140,6 +158,12 @@ export async function HandleWSConn(pWebSocket: WebSocket): Promise<void> {
 						}
 						break;
 					}
+					case 'sendFiles': {
+						const idAndfileInfo = await AddUserFiles(objEvent.d);
+						await BroadcastSendFiles(_connInfo, idAndfileInfo);
+						await RespondSendFiles(_connInfo, idAndfileInfo);
+						break;
+					}
 					default: {
 						console.log('Invalid message', objEvent);
 						break;
@@ -213,6 +237,29 @@ async function RespondGetUsers(
 	});
 }
 
+async function RespondSendFiles(
+	pConnInfo: ConnInfo,
+	pData: { id: string; file: FileInfo }
+) {
+	return Respond(pConnInfo, {
+		h: 'sendFilesResp',
+		d: pData,
+	});
+}
+
+async function BroadcastSendFiles(
+	pConnInfo: ConnInfo,
+	pData: { id: string; file: FileInfo }
+) {
+	const { id: _SenderId, conn: _SenderConn } = pConnInfo;
+	const { name: _SenderName } = _SenderConn;
+	return Broadcast(_SenderId, {
+		h: 'sendFiles',
+		s: _SenderName,
+		d: pData,
+	});
+}
+
 function BroadcastJoin(pSrcInfo: ConnInfo) {
 	const { id: _SenderId, conn: _SenderConn } = pSrcInfo;
 	const { name: _SenderName } = _SenderConn;
@@ -260,4 +307,40 @@ async function Respond(
 	if (await CheckConnById(_Id)) {
 		await _WS.send(JSON.stringify(pMessage));
 	}
+}
+
+async function AddUserFiles(pData: {
+	id?: string;
+	file: FileInfo;
+}): Promise<{ id: string; file: FileInfo }> {
+	return new Promise((resolve) => {
+		const _id = v4.generate();
+		UserFiles.set(_id, pData.file);
+		return resolve({ id: _id, file: pData.file });
+	});
+}
+
+async function FindUserFilesById(pId: string): Promise<FileInfo | null> {
+	return new Promise((resolve) => {
+		const fileData = UserFiles.get(pId);
+		return resolve(fileData ? fileData : null);
+	});
+}
+
+async function RemoveUserFilesId(pId: string): Promise<Boolean> {
+	return new Promise((resolve) => {
+		resolve(UserFiles.delete(pId));
+	});
+}
+
+async function CheckUserFilesById(pId: string): Promise<Boolean> {
+	return new Promise((resolve) => {
+		resolve(!!UserFiles.get(pId));
+	});
+}
+
+async function CountUserFiles(): Promise<number> {
+	return new Promise((resolve) => {
+		return resolve(UserFiles.size);
+	});
 }
