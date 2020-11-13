@@ -15,8 +15,8 @@ $(function onload() {
 	const btnSend = $('#btnSend');
 	const btnLeave = $('#btnLeave');
 	const listUsers = $('#listUsers');
-	// const btnUpload = $('#btnUpload');
-	// const btnSendFiles = $('#btnSendFiles');
+	const objUpload = $('#objUpload');
+	const btnSendFile = $('#btnSendFile');
 
 	const chatScroll = () => {
 		txtChat.prop('scrollTop', txtChat.prop('scrollHeight'));
@@ -53,14 +53,14 @@ $(function onload() {
 		);
 	};
 
-	const generateLinkFromFileData = (pData) => {
-		const tId = pData.id;
-		const tFile = pData.file;
-		const tFileData = tFile.data;
-		const tFileName = tFile.name;
-		const tURL = URL.createObjectURL(new Blob([tFileData]));
-		return `<a data-fileId="${tId}" href="${tURL}" download="${tFileName}"></a>`;
-	};
+	// const generateLinkFromFileData = (pData) => {
+	// 	const tId = pData.id;
+	// 	const tFile = pData.file;
+	// 	const tFileData = tFile.data;
+	// 	const tFileName = tFile.name;
+	// 	const tURL = URL.createObjectURL(new Blob([tFileData]));
+	// 	return `<a data-fileId="${tId}" href="${tURL}" download="${tFileName}"></a>`;
+	// };
 
 	chatWrapper.hide();
 	txtUsername.focus();
@@ -76,7 +76,8 @@ $(function onload() {
 
 	ws.addEventListener('message', (evt) => {
 		const objData = JSON.parse(evt.data);
-		switch (objData.type) {
+		const _msgType = objData.type;
+		switch (_msgType) {
 			case 'respond-connect': {
 				if (checkRespondStatus(objData)) {
 					wsId = objData.id;
@@ -149,18 +150,30 @@ $(function onload() {
 				break;
 			}
 			case 'respond-sendFile': {
-				// const tLink = generateLinkFromFileData(objData.d);
-				// chatWriteLine(`${username}: ${tLink}`);
-				// txtMessage.val('').focus();
+				if (checkRespondStatus(objData)) {
+					const id = objData.id;
+					const filename = objData.filename;
+					chatWriteLine(
+						`${username}: Uploaded a file [${filename} :: ${id}]`
+					);
+					txtMessage.val('').focus();
+				}
 				break;
 			}
 			case 'broadcast-sendFile': {
-				// const username = objData.s;
-				// const tLink = generateLinkFromFileData(objData.d);
-				// chatWriteLine(`${username}: ${tLink}`);
+				const username = objData.username;
+				const id = objData.id;
+				const filename = objData.filename;
+				chatWriteLine(
+					`${username}: Uploaded a file [${filename} :: ${id}]`
+				);
 				break;
 			}
 			default: {
+				console.log({
+					received: _msgType,
+					objData: objData,
+				});
 				break;
 			}
 		}
@@ -199,25 +212,31 @@ $(function onload() {
 		}
 	});
 
-	// btnSendFiles.click(async () => {
-	// 	const file = document.getElementById('btnUpload').files[0];
-	// 	if (file) {
-	// 		const fileData = await file.text();
-	// 		const fileName = file.name;
-	// 		const fileObj = {
-	// 			file: {
-	// 				data: fileData,
-	// 				name: fileName,
-	// 			},
-	// 		};
-	// 		ws.send(
-	// 			JSON.stringify({
-	// 				h: 'sendFiles',
-	// 				d: fileObj,
-	// 			})
-	// 		);
-	// 	}
-	// });
+	objUpload.change(async (pEvent) => {
+		const target = pEvent.target;
+		const file = target.files[0];
+		if (file) {
+			const fileData = await file.text();
+			const fileName = file.name;
+			const fileObj = {
+				file: {
+					data: fileData,
+					name: fileName,
+				},
+			};
+			ws.send(
+				JSON.stringify({
+					type: 'sendFile',
+					fileInfo: { name: fileName, data: fileData },
+				})
+			);
+		}
+	});
+
+	btnSendFile.click(async () => {
+		objUpload.click();
+		return;
+	});
 
 	btnLeave.click(() => {
 		ws.send(

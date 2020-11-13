@@ -29,7 +29,7 @@ type WSClientChat = { type: 'chat'; msg: string };
 type WSClientGetUsers = { type: 'getUsers' };
 type WSClientSendFile = {
 	type: 'sendFile';
-	fileInfo: { data: string; name: string };
+	fileInfo: { name: string; data: string };
 };
 type WSClientMessage =
 	| WSClientJoin
@@ -64,6 +64,7 @@ type WSRespondSendFile = {
 	type: 'respond-sendFile';
 	status: MsgStatus;
 	id: string;
+	filename: string;
 };
 type WSRespondMessage =
 	| WSRespondConnect
@@ -85,6 +86,7 @@ type WSBroadcastSendFile = {
 	type: 'broadcast-sendFile';
 	username: string;
 	id: string;
+	filename: string;
 };
 type WSBroadcastMessage =
 	| WSBroadcastJoin
@@ -189,12 +191,18 @@ export async function HandleWSConn(pWebSocket: WebSocket): Promise<void> {
 							const fileName = objEvent.fileInfo.name;
 							const fileData = objEvent.fileInfo.data;
 							const _id = await AddFile(fileName, fileData);
-							await BroadcastSendFile(_connInfo, _id);
-							await RespondSendFile(_connInfo, MsgStatus.OK, _id);
+							await BroadcastSendFile(_connInfo, _id, fileName);
+							await RespondSendFile(
+								_connInfo,
+								MsgStatus.OK,
+								_id,
+								fileName
+							);
 						} else {
 							await RespondSendFile(
 								_connInfo,
 								MsgStatus.NOT_IN_CHAT,
+								'',
 								''
 							);
 						}
@@ -276,22 +284,29 @@ async function RespondGetUsers(
 async function RespondSendFile(
 	pConnInfo: ConnInfo,
 	pStatus: MsgStatus,
-	pId: string
+	pId: string,
+	pFilename: string
 ) {
 	return Respond(pConnInfo, {
 		type: 'respond-sendFile',
 		status: pStatus,
 		id: pId,
+		filename: pFilename,
 	});
 }
 
-async function BroadcastSendFile(pConnInfo: ConnInfo, pId: string) {
+async function BroadcastSendFile(
+	pConnInfo: ConnInfo,
+	pId: string,
+	pFilename: string
+) {
 	const { id: _SenderId, conn: _SenderConn } = pConnInfo;
 	const { name: _SenderName } = _SenderConn;
 	return Broadcast(_SenderId, {
 		type: 'broadcast-sendFile',
 		username: _SenderName,
 		id: pId,
+		filename: pFilename,
 	});
 }
 
