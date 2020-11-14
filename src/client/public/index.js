@@ -15,8 +15,8 @@ $(function onload() {
 	const btnSend = $('#btnSend');
 	const btnLeave = $('#btnLeave');
 	const listUsers = $('#listUsers');
-	const btnUpload = $('#btnUpload');
-	const btnSendFiles = $('#btnSendFiles');
+	const objUpload = $('#objUpload');
+	const btnSendFile = $('#btnSendFile');
 
 	const chatScroll = () => {
 		txtChat.prop('scrollTop', txtChat.prop('scrollHeight'));
@@ -53,114 +53,127 @@ $(function onload() {
 		);
 	};
 
-	const generateLinkFromFileData = (pData) => {
-		const tId = pData.id;
-		const tFile = pData.file;
-		const tFileData = tFile.data;
-		const tFileName = tFile.name;
-		const tURL = URL.createObjectURL(new Blob([tFileData]));
-		return `<a data-fileId="${tId}" href="${tURL}" download="${tFileName}"></a>`;
-	};
+	// const generateLinkFromFileData = (pData) => {
+	// 	const tId = pData.id;
+	// 	const tFile = pData.file;
+	// 	const tFileData = tFile.data;
+	// 	const tFileName = tFile.name;
+	// 	const tURL = URL.createObjectURL(new Blob([tFileData]));
+	// 	return `<a data-fileId="${tId}" href="${tURL}" download="${tFileName}"></a>`;
+	// };
 
 	chatWrapper.hide();
 	txtUsername.focus();
 
+	const checkRespondStatus = (objData) => {
+		const status = objData.status;
+		if (status === 'OK') {
+			return true;
+		}
+		alert(status);
+		return false;
+	};
+
 	ws.addEventListener('message', (evt) => {
 		const objData = JSON.parse(evt.data);
-		switch (objData.h) {
-			case 'connectResp': {
-				const r = objData.r;
-				if (r === 'OK') {
-					wsId = objData.d;
+		const _msgType = objData.type;
+		switch (_msgType) {
+			case 'respond-connect': {
+				if (checkRespondStatus(objData)) {
+					wsId = objData.id;
 					document.title = `${titleBase} - ${wsId}`;
-				} else {
-					alert(r);
 				}
 				break;
 			}
-			case 'joinResp': {
-				const r = objData.r;
-				if (r === 'OK') {
-					const s = objData.s;
-					username = s;
+			case 'respond-join': {
+				if (checkRespondStatus(objData)) {
+					username = objData.username;
 					lUsers = [];
 					loginWrapper.hide();
 					chatWrapper.show();
 					txtUsername.val('');
 					chatEmpty();
 					txtMessage.focus();
-					chatWriteLine(`You are connected! (${s})`);
+					chatWriteLine(`You are connected! (${username})`);
 					showUsers();
 					getUsers();
 				} else {
-					alert(r);
 					txtUsername.focus();
 				}
 				break;
 			}
-			case 'chatResp': {
-				const r = objData.r;
-				if (r === 'OK') {
-					const message = objData.d;
+			case 'respond-chat': {
+				if (checkRespondStatus(objData)) {
+					const message = objData.msg;
 					chatWriteLine(`${username}: ${message}`);
 					txtMessage.val('').focus();
 				} else {
-					alert(r);
 					txtMessage.focus();
 				}
 				break;
 			}
-			case 'leaveResp': {
-				const r = objData.r;
-				if (r === 'OK') {
-					chatEmpty();
-					lUsers = [];
-					showUsers();
+			case 'respond-leave': {
+				if (checkRespondStatus(objData)) {
 					username = '';
+					lUsers = [];
+					chatEmpty();
+					showUsers();
 					loginWrapper.show();
 					chatWrapper.hide();
 					txtUsername.val('').focus();
-				} else {
-					alert(r);
 				}
 				break;
 			}
-			case 'getUsersResp': {
-				lUsers = objData.userList;
-				showUsers();
+			case 'respond-getUsers': {
+				if (checkRespondStatus(objData)) {
+					lUsers = objData.userList;
+					showUsers();
+				}
 				break;
 			}
-			case 'sendFilesResp': {
-				const tLink = generateLinkFromFileData(objData.d);
-				chatWriteLine(`${username}: ${tLink}`);
-				txtMessage.val('').focus();
-				break;
-			}
-			case 'sendFiles': {
-				const username = objData.s;
-				const tLink = generateLinkFromFileData(objData.d);
-				chatWriteLine(`${username}: ${tLink}`);
-				break;
-			}
-			case 'join': {
-				const username = objData.d;
+			case 'broadcast-join': {
+				const username = objData.username;
 				chatWriteLine(`User connect (${username})`);
 				addUser(username);
 				break;
 			}
-			case 'chat': {
-				const username = objData.s;
-				const message = objData.d;
+			case 'broadcast-chat': {
+				const username = objData.username;
+				const message = objData.msg;
 				chatWriteLine(`${username}: ${message}`);
 				break;
 			}
-			case 'leave': {
-				const username = objData.d;
+			case 'broadcast-leave': {
+				const username = objData.username;
 				chatWriteLine(`User disconnect (${username})`);
 				removeUser(username);
 				break;
 			}
+			case 'respond-sendFile': {
+				if (checkRespondStatus(objData)) {
+					const id = objData.id;
+					const filename = objData.filename;
+					chatWriteLine(
+						`${username}: Uploaded a file [${filename} :: ${id}]`
+					);
+					txtMessage.val('').focus();
+				}
+				break;
+			}
+			case 'broadcast-sendFile': {
+				const username = objData.username;
+				const id = objData.id;
+				const filename = objData.filename;
+				chatWriteLine(
+					`${username}: Uploaded a file [${filename} :: ${id}]`
+				);
+				break;
+			}
 			default: {
+				console.log({
+					received: _msgType,
+					objData: objData,
+				});
 				break;
 			}
 		}
@@ -169,7 +182,7 @@ $(function onload() {
 	const getUsers = () => {
 		ws.send(
 			JSON.stringify({
-				h: 'getUsers',
+				type: 'getUsers',
 			})
 		);
 	};
@@ -178,8 +191,8 @@ $(function onload() {
 		const username = txtUsername.val();
 		ws.send(
 			JSON.stringify({
-				h: 'join',
-				d: username,
+				type: 'join',
+				username: username,
 			})
 		);
 	});
@@ -189,8 +202,8 @@ $(function onload() {
 		if (message !== '') {
 			ws.send(
 				JSON.stringify({
-					h: 'chat',
-					d: message,
+					type: 'chat',
+					msg: message,
 				})
 			);
 		} else {
@@ -199,8 +212,9 @@ $(function onload() {
 		}
 	});
 
-	btnSendFiles.click(async () => {
-		const file = document.getElementById('btnUpload').files[0];
+	objUpload.change(async (pEvent) => {
+		const target = pEvent.target;
+		const file = target.files[0];
 		if (file) {
 			const fileData = await file.text();
 			const fileName = file.name;
@@ -212,17 +226,22 @@ $(function onload() {
 			};
 			ws.send(
 				JSON.stringify({
-					h: 'sendFiles',
-					d: fileObj,
+					type: 'sendFile',
+					fileInfo: { name: fileName, data: fileData },
 				})
 			);
 		}
 	});
 
+	btnSendFile.click(async () => {
+		objUpload.click();
+		return;
+	});
+
 	btnLeave.click(() => {
 		ws.send(
 			JSON.stringify({
-				h: 'leave',
+				type: 'leave',
 			})
 		);
 	});

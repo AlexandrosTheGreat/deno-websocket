@@ -51,14 +51,13 @@ export function FindConnByName(pName: string): Promise<Connection | null> {
 	});
 }
 
-export function RemoveConnById(pId: string): Promise<Boolean> {
+export function RemoveConnById(pId: string): Promise<boolean> {
 	return new Promise((resolve) => {
-		const deleted = Connections.delete(pId);
-		resolve(deleted);
+		resolve(Connections.delete(pId));
 	});
 }
 
-export function CheckConnById(pId: string): Promise<Boolean> {
+export function CheckConnById(pId: string): Promise<boolean> {
 	return new Promise((resolve) => {
 		const conn = Connections.get(pId);
 		const isInvalid = !conn || conn.ws.isClosed;
